@@ -1,0 +1,24 @@
+[server]
+domain = "localhost"
+hostname = "mail.localhost"
+
+[smtp]
+listen_addr = "0.0.0.0:2525"
+enable_tls = false
+# tls_cert_path = "/path/to/cert.pem"
+# tls_key_path = "/path/to/key.pem"
+max_message_size = 10485760  # 10MB
+
+[imap]
+listen_addr = "0.0.0.0:1993"
+enable_tls = false
+# tls_cert_path = "/path/to/cert.pem"
+# tls_key_path = "/path/to/key.pem"
+
+[storage]
+maildir_path = "/tmp/maildir"
+database_url = "sqlite://mail.db"
+
+[logging]
+level = "debug"
+format = "pretty"

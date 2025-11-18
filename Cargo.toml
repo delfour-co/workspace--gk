@@ -1,0 +1,55 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "mail-rs",
+    # "proxy-rs",
+    # "ai-runtime",
+    # "mcp-mail-server",
+    # "web-ui",
+    # "chat-rs",
+    # "dav-rs",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Kevin Delfour"]
+license = "AGPL-3.0"
+repository = "https://github.com/yourusername/communication-suite"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+tokio-util = "0.7"
+
+# HTTP server
+axum = { version = "0.7", features = ["ws"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+
+# Database
+sqlx = { version = "0.7", features = ["sqlite", "runtime-tokio-rustls"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Utils
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1"
+thiserror = "1"
+
+# Config
+config = "0.14"
+
+# TLS
+tokio-rustls = "0.24"
+rustls = "0.21"
+rustls-pemfile = "1"

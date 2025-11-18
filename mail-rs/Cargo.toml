@@ -1,0 +1,69 @@
+[package]
+name = "mail-rs"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Async runtime
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+
+# TLS
+tokio-rustls = { workspace = true }
+rustls = { workspace = true }
+rustls-pemfile = { workspace = true }
+
+# Mail parsing/generation
+mail-parser = "0.9"
+mail-builder = "0.3"
+
+# DNS
+trust-dns-resolver = "0.23"
+
+# HTTP API
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+
+# Auth
+jsonwebtoken = "9"
+argon2 = "0.5"
+
+# Database
+sqlx = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+
+# Crypto
+ring = "0.17"
+rsa = "0.9"
+sha2 = "0.10"
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# Utils
+uuid = { workspace = true }
+chrono = { workspace = true }
+bytes = "1"
+futures = "0.3"
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+gethostname = "0.4"
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Config
+config = { workspace = true }
+
+[dev-dependencies]
+# Testing
+mockall = "0.12"

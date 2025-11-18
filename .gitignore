@@ -1,0 +1,46 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config files (may contain secrets)
+*.local.toml
+.env
+.env.local
+
+# Logs
+*.log
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Mail storage (development)
+/mail-data/
+/maildir/
+
+# Models (LLM files are large)
+*.gguf
+*.bin
+/models/
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
