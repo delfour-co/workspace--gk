@@ -70,7 +70,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `enable_tls`, `tls_cert_path`, `tls_key_path`
   - `enable_auth`, `auth_database_url`, `require_auth`
 
-**Testing** (62/62 tests passing)
+**CLI Tools**
+- `mail-user` - User management utility:
+  - Add users with password hashing
+  - Delete users
+  - List all users with creation and last login dates
+  - Check if user exists
+  - Configurable database path
+
+**Testing** (67/67 tests passing)
 - Unit tests for all modules
 - Integration tests for SMTP receiver
 - Integration tests for SMTP sender/queue

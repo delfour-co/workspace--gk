@@ -272,6 +272,23 @@ impl Authenticator {
 
         Ok(())
     }
+
+    /// List all users
+    ///
+    /// Returns a list of (email, created_at, last_login) tuples
+    pub async fn list_users(&self) -> Result<Vec<(String, String, Option<String>)>> {
+        let users = sqlx::query_as::<_, (String, String, Option<String>)>(
+            r#"
+            SELECT email, created_at, last_login
+            FROM smtp_users
+            ORDER BY created_at DESC
+            "#,
+        )
+        .fetch_all(&*self.db)
+        .await?;
+
+        Ok(users)
+    }
 }
 
 #[cfg(test)]
