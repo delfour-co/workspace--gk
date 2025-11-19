@@ -298,7 +298,7 @@ async fn send_email_smtp(
 
     // MAIL FROM
     writer
-        .write_all(b"MAIL FROM:<ai@localhost>\r\n")
+        .write_all(b"MAIL FROM:<ai@example.com>\r\n")
         .await?;
     line.clear();
     reader.read_line(&mut line).await?;
@@ -320,7 +320,7 @@ async fn send_email_smtp(
 
     // Email content
     let email_data = format!(
-        "From: AI Assistant <ai@localhost>\r\n\
+        "From: AI Assistant <ai@example.com>\r\n\
          To: <{}>\r\n\
          Subject: {}\r\n\
          \r\n\

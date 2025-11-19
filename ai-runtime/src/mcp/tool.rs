@@ -66,6 +66,7 @@ impl Tool {
 pub struct ToolParameter {
     pub name: String,
     pub description: String,
+    #[serde(rename = "type")]
     pub param_type: String, // "string", "number", "boolean", etc.
     pub required: bool,
 }
