@@ -50,7 +50,7 @@ An alternative to Google Workspace that you can self-host, with a unique twist: 
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **mail-rs** | 🚧 In Progress | SMTP/IMAP mail server |
+| **mail-rs** | 🟢 SMTP Ready | SMTP/IMAP mail server (SMTP complete) |
 | **proxy-rs** | ⏳ Planned | Reverse proxy with SSL/TLS |
 | **ai-runtime** | ⏳ Planned | LLM runtime + MCP orchestrator |
 | **mcp-mail-server** | ⏳ Planned | MCP server for mail |
@@ -60,19 +60,29 @@ An alternative to Google Workspace that you can self-host, with a unique twist: 
 
 ## Current Status
 
-### ✅ Completed (Sprint 1)
+### ✅ Completed (Sprint 1 & 2)
 - Project structure and workspace setup
 - Complete documentation (~153KB of technical specs)
-- mail-rs SMTP receiver:
+- **mail-rs SMTP receiver (Sprint 1)**:
   - SMTP command parsing
-  - Session state machine
-  - Maildir storage
+  - Session state machine with security
+  - Maildir storage (atomic writes)
   - TCP server with async/await
+  - Input validation (RFC 5321)
+  - Timeout protection & rate limits
+  - 66/66 tests passing
+- **mail-rs SMTP sender (Sprint 2)**:
+  - SMTP client for outgoing emails
+  - MX record lookup with DNS
+  - Queue system with SQLite persistence
+  - Automatic retry with exponential backoff
+  - Bounce handling
+  - Multi-server fallback
 
-### 🚧 Next Up
-- SMTP sender (outgoing mail)
-- SMTP queue with retry logic
-- TLS support
+### 🚧 Next Up (Sprint 3)
+- TLS/STARTTLS support
+- SMTP AUTH (authentication)
+- SPF/DKIM validation
 - IMAP server implementation
 
 ## Quick Start

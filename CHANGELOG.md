@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Contributing guidelines with code quality standards
 
 #### mail-rs (SMTP Server)
+
+**Sprint 1: SMTP Receiver**
 - SMTP receiver with RFC 5321 compliance
 - Comprehensive email validation:
   - Length limits (local: 64, domain: 255, total: 320 chars)
@@ -30,10 +32,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SMTP command parsing (HELO, EHLO, MAIL FROM, RCPT TO, DATA, QUIT, RSET, NOOP)
 - Session state machine with proper validation
 - Maildir storage backend with atomic writes
-- Comprehensive test suite:
-  - Unit tests for all modules
-  - Integration tests for end-to-end SMTP transactions
-  - Security test cases (injection, limits, timeouts)
+
+**Sprint 2: SMTP Sender**
+- SMTP client for outgoing email delivery
+- MX record lookup with DNS resolver
+- Priority-based mail server selection
+- Automatic fallback to A/AAAA records
+- Queue system with SQLite persistence:
+  - Automatic retry with exponential backoff (2min → 32min)
+  - Maximum 5 retry attempts
+  - Bounce handling for permanent failures
+  - Status tracking (Pending/Sending/Sent/Failed/Bounced)
+  - Batch processing (10 emails at a time)
+- Multi-server fallback (tries all MX servers in order)
+- Async queue worker with configurable intervals
+
+**Testing** (66/66 tests passing)
+- Unit tests for all modules
+- Integration tests for SMTP receiver
+- Integration tests for SMTP sender/queue
+- Security test cases (injection, limits, timeouts)
+- Doc-tests for all public APIs
 - Full rustdoc documentation for public APIs
 - Structured logging with tracing
 
