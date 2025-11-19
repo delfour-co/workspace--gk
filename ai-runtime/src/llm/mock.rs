@@ -29,26 +29,23 @@ impl MockLlm {
             return self.parse_send_email(message);
         }
 
-        // Intent: List emails
+        // Intent: List emails (check before "lis" to avoid substring match)
         if (message_lower.contains("liste") || message_lower.contains("montre"))
             && (message_lower.contains("email") || message_lower.contains("mail"))
         {
-            return Some(ToolCall {
-                name: "list_emails".to_string(),
-                arguments: HashMap::from([
-                    ("folder".to_string(), serde_json::json!("INBOX")),
-                    ("limit".to_string(), serde_json::json!(10)),
-                ]),
-            });
+            return self.parse_list_emails(message);
+        }
+
+        // Intent: Read specific email
+        if (message_lower.contains("lis") || message_lower.contains("ouvre") || message_lower.contains("affiche"))
+            && (message_lower.contains("email") || message_lower.contains("mail"))
+        {
+            return self.parse_read_email(message);
         }
 
         // Intent: Search emails
         if message_lower.contains("cherche") || message_lower.contains("recherche") {
-            let query = self.extract_search_query(message);
-            return Some(ToolCall {
-                name: "search_emails".to_string(),
-                arguments: HashMap::from([("query".to_string(), serde_json::json!(query))]),
-            });
+            return self.parse_search_emails(message);
         }
 
         None
@@ -89,16 +86,86 @@ impl MockLlm {
         })
     }
 
-    /// Extract search query from message
-    fn extract_search_query(&self, message: &str) -> String {
-        // Simple extraction: words after "cherche" or "recherche"
-        if let Some(pos) = message.find("cherche") {
-            message[pos + 7..].trim().to_string()
-        } else if let Some(pos) = message.find("recherche") {
-            message[pos + 9..].trim().to_string()
+    /// Parse "list emails" intent
+    fn parse_list_emails(&self, message: &str) -> Option<ToolCall> {
+        // Extract email address if provided, otherwise use default
+        let email = if let Ok(email_regex) = regex::Regex::new(r"([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})") {
+            email_regex
+                .find(message)
+                .map(|m| m.as_str().to_string())
+                .unwrap_or_else(|| "john@example.com".to_string())
         } else {
-            message.to_string()
+            "john@example.com".to_string()
+        };
+
+        // Extract limit if provided
+        let limit = if let Ok(limit_regex) = regex::Regex::new(r"(\d+)\s+(derniers?|recent|emails?)") {
+            limit_regex
+                .captures(message)
+                .and_then(|caps| caps.get(1))
+                .and_then(|m| m.as_str().parse::<u64>().ok())
+                .unwrap_or(10)
+        } else {
+            10
+        };
+
+        Some(ToolCall {
+            name: "list_emails".to_string(),
+            arguments: HashMap::from([
+                ("email".to_string(), serde_json::json!(email)),
+                ("limit".to_string(), serde_json::json!(limit)),
+            ]),
+        })
+    }
+
+    /// Parse "read email" intent
+    fn parse_read_email(&self, message: &str) -> Option<ToolCall> {
+        // Extract email address
+        let email_regex = regex::Regex::new(r"([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})").ok()?;
+        let email = email_regex
+            .find(message)
+            .map(|m| m.as_str())
+            .unwrap_or("john@example.com");
+
+        // For simplicity, we'll need the email_id from a previous list_emails call
+        // In a real implementation, this would track conversation state
+        // For now, return None to indicate we need more context
+        debug!("Read email intent detected but requires email_id from context");
+        None
+    }
+
+    /// Parse "search emails" intent
+    fn parse_search_emails(&self, message: &str) -> Option<ToolCall> {
+        // Extract email address
+        let email = if let Ok(email_regex) = regex::Regex::new(r"([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})") {
+            email_regex
+                .find(message)
+                .map(|m| m.as_str().to_string())
+                .unwrap_or_else(|| "john@example.com".to_string())
+        } else {
+            "john@example.com".to_string()
+        };
+
+        // Extract search query
+        let query = if let Some(pos) = message.find("cherche") {
+            message[pos + 7..].trim()
+        } else if let Some(pos) = message.find("recherche") {
+            message[pos + 9..].trim()
+        } else {
+            ""
+        };
+
+        if query.is_empty() {
+            return None;
         }
+
+        Some(ToolCall {
+            name: "search_emails".to_string(),
+            arguments: HashMap::from([
+                ("email".to_string(), serde_json::json!(email)),
+                ("query".to_string(), serde_json::json!(query)),
+            ]),
+        })
     }
 }
 
@@ -188,5 +255,24 @@ mod tests {
 
         assert_eq!(response.tool_calls.len(), 1);
         assert_eq!(response.tool_calls[0].name, "list_emails");
+    }
+
+    #[tokio::test]
+    async fn test_mock_llm_search_emails() {
+        let llm = MockLlm::new();
+
+        let messages = vec![Message {
+            role: MessageRole::User,
+            content: "cherche bonjour dans mes emails".to_string(),
+        }];
+
+        let response = llm.generate(messages, None).await.unwrap();
+
+        assert_eq!(response.tool_calls.len(), 1);
+        assert_eq!(response.tool_calls[0].name, "search_emails");
+        assert_eq!(
+            response.tool_calls[0].arguments["query"],
+            "bonjour dans mes emails"
+        );
     }
 }
