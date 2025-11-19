@@ -3,6 +3,38 @@ use std::path::PathBuf;
 use tokio::fs;
 use tracing::info;
 
+/// Maildir storage backend
+///
+/// Implements the Maildir format for storing emails. Each email is stored
+/// as a separate file, providing crash safety and easy backups.
+///
+/// # Maildir Format
+///
+/// ```text
+/// maildir/
+/// ├── user@domain.com/
+/// │   ├── tmp/   # Temporary files during write
+/// │   ├── new/   # New unread messages
+/// │   └── cur/   # Current (read) messages
+/// ```
+///
+/// # Security
+/// - Atomic writes (tmp → new)
+/// - Crash-safe
+/// - No database corruption
+/// - Per-user directory isolation
+///
+/// # Examples
+///
+/// ```no_run
+/// use mail_rs::storage::MaildirStorage;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let storage = MaildirStorage::new("/var/mail/maildir".to_string());
+/// storage.store("user@example.com", b"email content").await?;
+/// # Ok(())
+/// # }
+/// ```
 pub struct MaildirStorage {
     base_path: PathBuf,
 }

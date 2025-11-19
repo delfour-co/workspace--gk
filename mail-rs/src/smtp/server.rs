@@ -26,9 +26,9 @@ impl SmtpServer {
                     info!("New SMTP connection from {}", addr);
 
                     let session = SmtpSession::new(
-                        self.config.server.domain.clone(),
                         self.config.server.hostname.clone(),
                         self.storage.clone(),
+                        self.config.smtp.max_message_size,
                     );
 
                     tokio::spawn(async move {

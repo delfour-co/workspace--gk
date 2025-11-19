@@ -1,5 +1,23 @@
+//! SMTP command parsing and validation
+//!
+//! This module handles parsing of SMTP protocol commands according to RFC 5321.
+//!
+//! # Security
+//! - Validates command syntax before processing
+//! - Prevents injection attacks via strict parsing
+//! - Handles malformed input gracefully
+
 use crate::error::{MailError, Result};
 
+/// SMTP protocol commands as defined in RFC 5321
+///
+/// # Examples
+/// ```
+/// use mail_rs::smtp::SmtpCommand;
+///
+/// let cmd = SmtpCommand::parse("HELO example.com").unwrap();
+/// assert_eq!(cmd, SmtpCommand::Helo("example.com".to_string()));
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum SmtpCommand {
     Helo(String),

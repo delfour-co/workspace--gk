@@ -1,10 +1,31 @@
 use crate::error::{MailError, Result};
 use crate::smtp::commands::SmtpCommand;
 use crate::storage::MaildirStorage;
+use crate::utils::validate_email;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
-use tracing::{debug, error, info};
+use tokio::time::timeout;
+use tracing::{debug, error, info, warn};
+
+/// Maximum number of recipients per message (anti-spam)
+const MAX_RECIPIENTS: usize = 100;
+
+/// Maximum size of email data (10MB)
+const MAX_DATA_SIZE: usize = 10 * 1024 * 1024;
+
+/// Maximum line length in SMTP protocol (RFC 5321)
+const MAX_LINE_LENGTH: usize = 1000;
+
+/// Timeout for reading a command line
+const COMMAND_TIMEOUT: Duration = Duration::from_secs(300); // 5 minutes
+
+/// Timeout for reading DATA content
+const DATA_TIMEOUT: Duration = Duration::from_secs(600); // 10 minutes
+
+/// Maximum number of errors before disconnecting
+const MAX_ERRORS: usize = 10;
 
 #[derive(Debug, Clone, PartialEq)]
 enum SmtpState {
@@ -15,29 +36,40 @@ enum SmtpState {
     Data,
 }
 
+/// SMTP session handler with security limits and validation
+///
+/// # Security features
+/// - Command timeouts to prevent slowloris attacks
+/// - Data size limits to prevent memory exhaustion
+/// - Recipient limits to prevent spam
+/// - Email validation to prevent injection
+/// - Error counting to detect malicious clients
 pub struct SmtpSession {
     state: SmtpState,
     from: Option<String>,
     to: Vec<String>,
     data: Vec<u8>,
-    domain: String,
     hostname: String,
     storage: Arc<MaildirStorage>,
+    error_count: usize,
+    max_message_size: usize,
 }
 
 impl SmtpSession {
-    pub fn new(domain: String, hostname: String, storage: Arc<MaildirStorage>) -> Self {
+    pub fn new(hostname: String, storage: Arc<MaildirStorage>, max_message_size: usize) -> Self {
         Self {
             state: SmtpState::Fresh,
             from: None,
             to: Vec::new(),
             data: Vec::new(),
-            domain,
             hostname,
             storage,
+            error_count: 0,
+            max_message_size,
         }
     }
 
+    /// Handle SMTP session with comprehensive security checks
     pub async fn handle(mut self, mut stream: TcpStream) -> Result<()> {
         let (reader, mut writer) = stream.split();
         let mut reader = BufReader::new(reader);
@@ -50,12 +82,48 @@ impl SmtpSession {
         let mut line = String::new();
 
         loop {
+            // Check error count (security: disconnect abusive clients)
+            if self.error_count >= MAX_ERRORS {
+                warn!("Too many errors, disconnecting");
+                writer
+                    .write_all(b"421 Too many errors, closing connection\r\n")
+                    .await?;
+                break;
+            }
+
             line.clear();
-            let n = reader.read_line(&mut line).await?;
+
+            // Read line with timeout (security: prevent slowloris)
+            let read_result = timeout(COMMAND_TIMEOUT, reader.read_line(&mut line)).await;
+
+            let n = match read_result {
+                Ok(Ok(n)) => n,
+                Ok(Err(e)) => {
+                    error!("IO error reading line: {}", e);
+                    return Err(e.into());
+                }
+                Err(_) => {
+                    warn!("Command timeout, disconnecting");
+                    writer
+                        .write_all(b"421 Timeout, closing connection\r\n")
+                        .await?;
+                    break;
+                }
+            };
 
             if n == 0 {
                 debug!("Client disconnected");
                 break;
+            }
+
+            // Check line length (security: prevent buffer overflow)
+            if line.len() > MAX_LINE_LENGTH {
+                error!("Line too long: {} bytes", line.len());
+                writer
+                    .write_all(b"500 Line too long\r\n")
+                    .await?;
+                self.error_count += 1;
+                continue;
             }
 
             let line_trimmed = line.trim_end();
@@ -63,17 +131,33 @@ impl SmtpSession {
 
             match SmtpCommand::parse(line_trimmed) {
                 Ok(cmd) => {
-                    let response = self.handle_command(cmd).await?;
-                    writer.write_all(response.as_bytes()).await?;
+                    match self.handle_command(cmd).await {
+                        Ok(response) => {
+                            writer.write_all(response.as_bytes()).await?;
 
-                    if response.starts_with("221") {
-                        // QUIT command
-                        break;
-                    }
+                            if response.starts_with("221") {
+                                // QUIT command
+                                break;
+                            }
 
-                    // Handle DATA mode
-                    if self.state == SmtpState::Data {
-                        self.receive_data(&mut reader, &mut writer).await?;
+                            // Handle DATA mode
+                            if self.state == SmtpState::Data {
+                                if let Err(e) = self.receive_data(&mut reader, &mut writer).await {
+                                    error!("Error receiving data: {}", e);
+                                    writer
+                                        .write_all(b"451 Error receiving message\r\n")
+                                        .await?;
+                                    self.error_count += 1;
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            error!("Error handling command: {}", e);
+                            writer
+                                .write_all(format!("451 {}\r\n", e).as_bytes())
+                                .await?;
+                            self.error_count += 1;
+                        }
                     }
                 }
                 Err(e) => {
@@ -81,6 +165,7 @@ impl SmtpSession {
                     writer
                         .write_all(b"500 Syntax error, command unrecognized\r\n")
                         .await?;
+                    self.error_count += 1;
                 }
             }
         }
@@ -104,6 +189,9 @@ impl SmtpSession {
                 ))
             }
             (SmtpState::Greeted | SmtpState::MailFrom | SmtpState::RcptTo, SmtpCommand::MailFrom(from)) => {
+                // Validate email address (security: prevent injection)
+                validate_email(&from)?;
+
                 info!("MAIL FROM: {}", from);
                 self.from = Some(from);
                 self.to.clear();
@@ -112,6 +200,18 @@ impl SmtpSession {
                 Ok("250 OK\r\n".to_string())
             }
             (SmtpState::MailFrom | SmtpState::RcptTo, SmtpCommand::RcptTo(to)) => {
+                // Validate email address (security: prevent injection)
+                validate_email(&to)?;
+
+                // Check recipient limit (security: prevent spam)
+                if self.to.len() >= MAX_RECIPIENTS {
+                    warn!("Too many recipients: {}", self.to.len());
+                    return Ok(format!(
+                        "452 Too many recipients (max {})\r\n",
+                        MAX_RECIPIENTS
+                    ));
+                }
+
                 info!("RCPT TO: {}", to);
                 self.to.push(to);
                 self.state = SmtpState::RcptTo;
@@ -148,6 +248,7 @@ impl SmtpSession {
         }
     }
 
+    /// Receive email DATA with security limits
     async fn receive_data<R, W>(
         &mut self,
         reader: &mut BufReader<R>,
@@ -161,7 +262,21 @@ impl SmtpSession {
 
         loop {
             line.clear();
-            let n = reader.read_line(&mut line).await?;
+
+            // Read with timeout (security: prevent slowloris)
+            let read_result = timeout(DATA_TIMEOUT, reader.read_line(&mut line)).await;
+
+            let n = match read_result {
+                Ok(Ok(n)) => n,
+                Ok(Err(e)) => {
+                    error!("IO error during DATA: {}", e);
+                    return Err(e.into());
+                }
+                Err(_) => {
+                    warn!("DATA timeout");
+                    return Err(MailError::SmtpProtocol("Timeout during DATA".to_string()));
+                }
+            };
 
             if n == 0 {
                 return Err(MailError::SmtpProtocol(
@@ -169,10 +284,29 @@ impl SmtpSession {
                 ));
             }
 
+            // Check line length (security)
+            if line.len() > MAX_LINE_LENGTH {
+                error!("DATA line too long: {} bytes", line.len());
+                return Err(MailError::SmtpProtocol("Line too long".to_string()));
+            }
+
             // Check for end of data (.)
             if line.trim_end() == "." {
-                info!("End of DATA received");
+                info!("End of DATA received, total size: {} bytes", self.data.len());
                 break;
+            }
+
+            // Check total size (security: prevent memory exhaustion)
+            let new_size = self.data.len() + line.len();
+            if new_size > self.max_message_size {
+                warn!(
+                    "Message too large: {} bytes (max {})",
+                    new_size, self.max_message_size
+                );
+                return Err(MailError::SmtpProtocol(format!(
+                    "Message too large (max {} bytes)",
+                    self.max_message_size
+                )));
             }
 
             // Handle transparency (lines starting with .)
@@ -181,6 +315,12 @@ impl SmtpSession {
             } else {
                 self.data.extend_from_slice(line.as_bytes());
             }
+        }
+
+        // Validate final data size
+        if self.data.is_empty() {
+            warn!("Empty message received");
+            return Err(MailError::SmtpProtocol("Empty message".to_string()));
         }
 
         // Store the email
