@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 pub mod mock;
+pub mod ollama;
 
 /// LLM response
 #[derive(Debug, Clone, Serialize, Deserialize)]

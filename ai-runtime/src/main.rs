@@ -14,6 +14,7 @@ use axum::{
 };
 use llm::{LlmEngine, Message, MessageRole};
 use llm::mock::MockLlm;
+use llm::ollama::OllamaLlm;
 use mcp::{McpRegistry, McpServer};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -53,8 +54,21 @@ async fn main() -> anyhow::Result<()> {
 
     info!("🚀 Starting ai-runtime...");
 
-    // Initialize LLM (mock for now)
-    let llm: Arc<dyn LlmEngine> = Arc::new(MockLlm::new());
+    // Initialize LLM (Ollama or Mock based on environment)
+    let use_ollama = std::env::var("USE_OLLAMA")
+        .unwrap_or_else(|_| "true".to_string())
+        .parse::<bool>()
+        .unwrap_or(true);
+
+    let llm: Arc<dyn LlmEngine> = if use_ollama {
+        let model = std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "mistral:latest".to_string());
+        info!("🤖 Using Ollama with model: {}", model);
+        Arc::new(OllamaLlm::new(model))
+    } else {
+        info!("🤖 Using Mock LLM");
+        Arc::new(MockLlm::new())
+    };
+
     info!("✅ LLM initialized: {}", llm.model_name());
 
     // Initialize MCP registry
