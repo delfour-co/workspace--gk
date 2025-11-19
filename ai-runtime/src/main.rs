@@ -18,7 +18,7 @@ use mcp::{McpRegistry, McpServer};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::{info, Level};
+use tracing::{info, warn, Level};
 use tracing_subscriber::FmtSubscriber;
 
 /// Application state
@@ -58,8 +58,23 @@ async fn main() -> anyhow::Result<()> {
     info!("✅ LLM initialized: {}", llm.model_name());
 
     // Initialize MCP registry
-    let mcp_registry = McpRegistry::new();
-    info!("✅ MCP registry initialized");
+    let mut mcp_registry = McpRegistry::new();
+
+    // Register MCP servers
+    info!("📡 Registering MCP servers...");
+
+    // Register mail server
+    let mail_server = McpServer::new(
+        "mail".to_string(),
+        "http://localhost:8090".to_string(),
+    );
+
+    match mcp_registry.register_server(mail_server).await {
+        Ok(_) => info!("✅ Mail server registered"),
+        Err(e) => warn!("⚠️  Could not register mail server: {}", e),
+    }
+
+    info!("✅ MCP registry initialized with {} tools", mcp_registry.get_tools().len());
 
     // Create app state
     let state = Arc::new(AppState {

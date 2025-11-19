@@ -2,7 +2,7 @@
 resolver = "2"
 
 members = [ "ai-runtime",
-    "mail-rs",
+    "mail-rs", "mcp-mail-server",
     # "proxy-rs",
     # "ai-runtime",
     # "mcp-mail-server",
