@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
 use tokio::time::sleep;
 
@@ -41,7 +42,7 @@ async fn start_test_server() -> SocketAddr {
 }
 
 /// Helper to read a line from the stream
-async fn read_line(reader: &mut BufReader<tokio::net::tcp::ReadHalf<'_>>) -> String {
+async fn read_line(reader: &mut BufReader<OwnedReadHalf>) -> String {
     let mut line = String::new();
     reader.read_line(&mut line).await.unwrap();
     line
@@ -49,7 +50,7 @@ async fn read_line(reader: &mut BufReader<tokio::net::tcp::ReadHalf<'_>>) -> Str
 
 /// Helper to write a line to the stream
 async fn write_line(
-    writer: &mut tokio::net::tcp::WriteHalf<'_>,
+    writer: &mut OwnedWriteHalf,
     line: &str,
 ) -> Result<(), std::io::Error> {
     writer.write_all(format!("{}\r\n", line).as_bytes()).await
@@ -163,9 +164,14 @@ async fn test_smtp_complete_transaction() {
     // Read greeting
     let _greeting = read_line(&mut reader).await;
 
-    // EHLO
+    // EHLO - read all response lines
     write_line(&mut writer, "EHLO test.client").await.unwrap();
-    let _response = read_line(&mut reader).await;
+    loop {
+        let line = read_line(&mut reader).await;
+        if line.starts_with("250 ") {
+            break;
+        }
+    }
 
     // MAIL FROM
     write_line(&mut writer, "MAIL FROM:<sender@example.com>")
@@ -175,7 +181,7 @@ async fn test_smtp_complete_transaction() {
     assert!(response.starts_with("250"), "MAIL FROM failed: {}", response);
 
     // RCPT TO
-    write_line(&mut writer, "RCPT TO:<recipient@localhost>")
+    write_line(&mut writer, "RCPT TO:<recipient@test.local>")
         .await
         .unwrap();
     let response = read_line(&mut reader).await;
@@ -215,9 +221,15 @@ async fn test_smtp_invalid_email_addresses() {
     // Read greeting
     let _greeting = read_line(&mut reader).await;
 
-    // EHLO
+    // EHLO - read all response lines
     write_line(&mut writer, "EHLO test.client").await.unwrap();
-    let _response = read_line(&mut reader).await;
+    loop {
+        let line = read_line(&mut reader).await;
+        // EHLO responses: "250-..." for continuation, "250 ..." for last line
+        if line.starts_with("250 ") {
+            break;
+        }
+    }
 
     // Try invalid email in MAIL FROM
     write_line(&mut writer, "MAIL FROM:<invalid-email>")
@@ -241,9 +253,14 @@ async fn test_smtp_too_many_recipients() {
     // Read greeting
     let _greeting = read_line(&mut reader).await;
 
-    // EHLO
+    // EHLO - read all response lines
     write_line(&mut writer, "EHLO test.client").await.unwrap();
-    let _response = read_line(&mut reader).await;
+    loop {
+        let line = read_line(&mut reader).await;
+        if line.starts_with("250 ") {
+            break;
+        }
+    }
 
     // MAIL FROM
     write_line(&mut writer, "MAIL FROM:<sender@example.com>")
@@ -253,7 +270,7 @@ async fn test_smtp_too_many_recipients() {
 
     // Add 101 recipients (max is 100)
     for i in 0..101 {
-        write_line(&mut writer, &format!("RCPT TO:<user{}@localhost>", i))
+        write_line(&mut writer, &format!("RCPT TO:<user{}@test.local>", i))
             .await
             .unwrap();
         let response = read_line(&mut reader).await;
