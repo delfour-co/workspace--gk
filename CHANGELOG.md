@@ -78,7 +78,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Check if user exists
   - Configurable database path
 
-**Testing** (67/67 tests passing)
+**Sprint 4: Email Validation (SPF/DKIM)**
+- SPF (Sender Policy Framework) validation (RFC 7208):
+  - SPF record lookup via DNS TXT records
+  - Support for SPF qualifiers (+, -, ~, ?)
+  - SPF mechanisms: all, ip4, ip6, a, mx, include (partial)
+  - Result types: Pass, Fail, SoftFail, Neutral, None, TempError, PermError
+  - Helper methods for policy decisions (should_accept, should_reject)
+- DKIM (DomainKeys Identified Mail) validation (RFC 6376):
+  - DKIM-Signature header parsing
+  - DKIM public key lookup from DNS ({selector}._domainkey.{domain})
+  - Signature parameter extraction (d=, s=, v=, a=, b=, etc.)
+  - Result types: Pass, Fail, Neutral, TempError, PermError
+  - Foundation for full cryptographic verification (planned)
+- Email validation modules:
+  - `utils::spf` - SPF validation implementation
+  - `utils::dkim` - DKIM validation implementation
+- Note: Both modules provide core framework; full cryptographic verification
+  and complete mechanism support planned for future iterations
+
+**Testing** (78/78 tests passing)
 - Unit tests for all modules
 - Integration tests for SMTP receiver
 - Integration tests for SMTP sender/queue
