@@ -15,6 +15,7 @@ tokio-util = { workspace = true }
 tokio-rustls = { workspace = true }
 rustls = { workspace = true }
 rustls-pemfile = { workspace = true }
+rcgen = "0.11"
 
 # Mail parsing/generation
 mail-parser = "0.9"
@@ -31,6 +32,7 @@ tower-http = { workspace = true }
 # Auth
 jsonwebtoken = "9"
 argon2 = "0.5"
+base64 = "0.21"
 
 # Database
 sqlx = { workspace = true }
@@ -67,3 +69,4 @@ config = { workspace = true }
 [dev-dependencies]
 # Testing
 mockall = "0.12"
+tempfile = "3"

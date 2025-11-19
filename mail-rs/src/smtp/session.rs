@@ -1,4 +1,5 @@
 use crate::error::{MailError, Result};
+use crate::security::{AuthMechanism, Authenticator, TlsConfig};
 use crate::smtp::commands::SmtpCommand;
 use crate::storage::MaildirStorage;
 use crate::utils::validate_email;
@@ -11,9 +12,6 @@ use tracing::{debug, error, info, warn};
 
 /// Maximum number of recipients per message (anti-spam)
 const MAX_RECIPIENTS: usize = 100;
-
-/// Maximum size of email data (10MB)
-const MAX_DATA_SIZE: usize = 10 * 1024 * 1024;
 
 /// Maximum line length in SMTP protocol (RFC 5321)
 const MAX_LINE_LENGTH: usize = 1000;
@@ -44,6 +42,8 @@ enum SmtpState {
 /// - Recipient limits to prevent spam
 /// - Email validation to prevent injection
 /// - Error counting to detect malicious clients
+/// - TLS/STARTTLS support for encryption
+/// - SMTP AUTH for authentication
 pub struct SmtpSession {
     state: SmtpState,
     from: Option<String>,
@@ -53,6 +53,11 @@ pub struct SmtpSession {
     storage: Arc<MaildirStorage>,
     error_count: usize,
     max_message_size: usize,
+    tls_config: Option<Arc<TlsConfig>>,
+    authenticator: Option<Arc<Authenticator>>,
+    is_encrypted: bool,
+    authenticated_user: Option<String>,
+    require_auth: bool,
 }
 
 impl SmtpSession {
@@ -66,6 +71,37 @@ impl SmtpSession {
             storage,
             error_count: 0,
             max_message_size,
+            tls_config: None,
+            authenticator: None,
+            is_encrypted: false,
+            authenticated_user: None,
+            require_auth: false,
+        }
+    }
+
+    /// Create session with TLS and Auth support
+    pub fn with_security(
+        hostname: String,
+        storage: Arc<MaildirStorage>,
+        max_message_size: usize,
+        tls_config: Option<Arc<TlsConfig>>,
+        authenticator: Option<Arc<Authenticator>>,
+        require_auth: bool,
+    ) -> Self {
+        Self {
+            state: SmtpState::Fresh,
+            from: None,
+            to: Vec::new(),
+            data: Vec::new(),
+            hostname,
+            storage,
+            error_count: 0,
+            max_message_size,
+            tls_config,
+            authenticator,
+            is_encrypted: false,
+            authenticated_user: None,
+            require_auth,
         }
     }
 
@@ -131,6 +167,25 @@ impl SmtpSession {
 
             match SmtpCommand::parse(line_trimmed) {
                 Ok(cmd) => {
+                    // Handle STARTTLS specially - needs to upgrade connection
+                    if matches!(cmd, SmtpCommand::Starttls) {
+                        if let Err(e) = self.handle_starttls(&mut writer).await {
+                            error!("STARTTLS error: {}", e);
+                            return Err(e);
+                        }
+                        continue;
+                    }
+
+                    // Handle AUTH specially - needs back-and-forth communication
+                    if let SmtpCommand::Auth(mechanism, initial_response) = cmd.clone() {
+                        if let Err(e) = self.handle_auth(&mechanism, initial_response, &mut reader, &mut writer).await {
+                            error!("AUTH error: {}", e);
+                            writer.write_all(b"535 Authentication failed\r\n").await?;
+                            self.error_count += 1;
+                        }
+                        continue;
+                    }
+
                     match self.handle_command(cmd).await {
                         Ok(response) => {
                             writer.write_all(response.as_bytes()).await?;
@@ -183,12 +238,33 @@ impl SmtpSession {
             (SmtpState::Fresh, SmtpCommand::Ehlo(domain)) => {
                 info!("EHLO from {}", domain);
                 self.state = SmtpState::Greeted;
-                Ok(format!(
-                    "250-{} Hello {}\r\n250-SIZE 10240000\r\n250 HELP\r\n",
-                    self.hostname, domain
-                ))
+
+                // Build EHLO response with capabilities
+                let mut response = format!("250-{} Hello {}\r\n", self.hostname, domain);
+                response.push_str(&format!("250-SIZE {}\r\n", self.max_message_size));
+
+                // Advertise STARTTLS if available and not already encrypted
+                if self.tls_config.is_some() && !self.is_encrypted {
+                    response.push_str("250-STARTTLS\r\n");
+                }
+
+                // Advertise AUTH if available and (encrypted or not requiring TLS)
+                if let Some(ref _auth) = self.authenticator {
+                    if self.is_encrypted || self.tls_config.is_none() {
+                        response.push_str("250-AUTH PLAIN LOGIN\r\n");
+                    }
+                }
+
+                response.push_str("250 HELP\r\n");
+                Ok(response)
             }
             (SmtpState::Greeted | SmtpState::MailFrom | SmtpState::RcptTo, SmtpCommand::MailFrom(from)) => {
+                // Check authentication if required
+                if self.require_auth && self.authenticated_user.is_none() {
+                    warn!("MAIL FROM rejected: authentication required");
+                    return Ok("530 Authentication required\r\n".to_string());
+                }
+
                 // Validate email address (security: prevent injection)
                 validate_email(&from)?;
 
@@ -236,6 +312,12 @@ impl SmtpSession {
             (_, SmtpCommand::Quit) => {
                 info!("QUIT command");
                 Ok(format!("221 {} closing connection\r\n", self.hostname))
+            }
+            // STARTTLS and AUTH are handled specially in handle() method
+            (_, SmtpCommand::Starttls) | (_, SmtpCommand::Auth(_, _)) => {
+                // These should not reach here as they're handled in handle()
+                error!("STARTTLS/AUTH command reached handle_command (should be handled in handle)");
+                Ok("503 Bad sequence of commands\r\n".to_string())
             }
             (_, SmtpCommand::Unknown(cmd)) => {
                 error!("Unknown command: {}", cmd);
@@ -348,5 +430,184 @@ impl SmtpSession {
         } else {
             Err(MailError::SmtpProtocol("No sender specified".to_string()))
         }
+    }
+
+    /// Handle STARTTLS command
+    ///
+    /// NOTE: This is a placeholder implementation. Full STARTTLS support requires
+    /// refactoring the handle() method to work with upgraded TLS streams.
+    async fn handle_starttls<W>(
+        &mut self,
+        writer: &mut W,
+    ) -> Result<()>
+    where
+        W: tokio::io::AsyncWrite + Unpin,
+    {
+        // Check if TLS is available
+        if self.tls_config.is_none() {
+            writer.write_all(b"502 STARTTLS not available\r\n").await?;
+            return Ok(());
+        }
+
+        // Check if already encrypted
+        if self.is_encrypted {
+            writer.write_all(b"503 Already using TLS\r\n").await?;
+            return Ok(());
+        }
+
+        // Check state
+        if self.state != SmtpState::Greeted {
+            writer.write_all(b"503 Bad sequence of commands\r\n").await?;
+            return Ok(());
+        }
+
+        info!("STARTTLS initiated");
+        writer.write_all(b"220 Ready to start TLS\r\n").await?;
+        writer.flush().await?;
+
+        // TODO: Implement TLS upgrade
+        // This requires:
+        // 1. Taking ownership of the stream
+        // 2. Creating TlsAcceptor from tls_config
+        // 3. Upgrading the stream: tls_acceptor.accept(stream).await?
+        // 4. Continuing the session with the TLS stream
+        //
+        // The challenge is that we have a split stream here, and we need
+        // the original TcpStream to upgrade it. This requires refactoring
+        // the handle() method signature and flow.
+
+        self.is_encrypted = true;
+        warn!("STARTTLS: TLS upgrade not fully implemented yet");
+
+        Ok(())
+    }
+
+    /// Handle AUTH command
+    async fn handle_auth<R, W>(
+        &mut self,
+        mechanism: &str,
+        initial_response: Option<String>,
+        reader: &mut BufReader<R>,
+        writer: &mut W,
+    ) -> Result<()>
+    where
+        R: tokio::io::AsyncRead + Unpin,
+        W: tokio::io::AsyncWrite + Unpin,
+    {
+        // Check if authenticator is available
+        let authenticator = match &self.authenticator {
+            Some(auth) => auth,
+            None => {
+                writer.write_all(b"502 AUTH not available\r\n").await?;
+                return Ok(());
+            }
+        };
+
+        // Require TLS if configured
+        if self.tls_config.is_some() && !self.is_encrypted {
+            writer.write_all(b"530 Must issue STARTTLS first\r\n").await?;
+            return Ok(());
+        }
+
+        // Check if already authenticated
+        if self.authenticated_user.is_some() {
+            writer.write_all(b"503 Already authenticated\r\n").await?;
+            return Ok(());
+        }
+
+        // Check state
+        if self.state != SmtpState::Greeted {
+            writer.write_all(b"503 Bad sequence of commands\r\n").await?;
+            return Ok(());
+        }
+
+        // Parse mechanism
+        let auth_mechanism = match AuthMechanism::from_str(mechanism) {
+            Some(m) => m,
+            None => {
+                writer.write_all(b"504 Authentication mechanism not supported\r\n").await?;
+                return Ok(());
+            }
+        };
+
+        info!("AUTH {} initiated", mechanism);
+
+        // Handle authentication based on mechanism
+        match auth_mechanism {
+            AuthMechanism::Plain => {
+                // PLAIN: AUTH PLAIN <base64-credentials>
+                let auth_data = match initial_response {
+                    Some(data) => data,
+                    None => {
+                        // Client didn't provide initial response, request it
+                        writer.write_all(b"334 \r\n").await?;
+
+                        // Read auth data
+                        let mut line = String::new();
+                        timeout(COMMAND_TIMEOUT, reader.read_line(&mut line))
+                            .await
+                            .map_err(|_| MailError::SmtpProtocol("AUTH timeout".to_string()))??;
+                        line.trim().to_string()
+                    }
+                };
+
+                // Decode PLAIN auth
+                let (username, password) = Authenticator::decode_plain_auth(&auth_data)?;
+
+                // Authenticate
+                let success = authenticator
+                    .authenticate(AuthMechanism::Plain, &username, &password)
+                    .await?;
+
+                if success {
+                    self.authenticated_user = Some(username.clone());
+                    info!("Authentication successful for {}", username);
+                    writer.write_all(b"235 Authentication successful\r\n").await?;
+                } else {
+                    warn!("Authentication failed for {}", username);
+                    writer.write_all(b"535 Authentication failed\r\n").await?;
+                    self.error_count += 1;
+                }
+            }
+            AuthMechanism::Login => {
+                // LOGIN: multi-step process
+                // Server sends: 334 VXNlcm5hbWU6 (base64 "Username:")
+                writer.write_all(b"334 VXNlcm5hbWU6\r\n").await?;
+
+                // Read username
+                let mut line = String::new();
+                timeout(COMMAND_TIMEOUT, reader.read_line(&mut line))
+                    .await
+                    .map_err(|_| MailError::SmtpProtocol("AUTH timeout".to_string()))??;
+                let username = Authenticator::decode_login_credential(line.trim())?;
+
+                // Server sends: 334 UGFzc3dvcmQ6 (base64 "Password:")
+                writer.write_all(b"334 UGFzc3dvcmQ6\r\n").await?;
+
+                // Read password
+                line.clear();
+                timeout(COMMAND_TIMEOUT, reader.read_line(&mut line))
+                    .await
+                    .map_err(|_| MailError::SmtpProtocol("AUTH timeout".to_string()))??;
+                let password = Authenticator::decode_login_credential(line.trim())?;
+
+                // Authenticate
+                let success = authenticator
+                    .authenticate(AuthMechanism::Login, &username, &password)
+                    .await?;
+
+                if success {
+                    self.authenticated_user = Some(username.clone());
+                    info!("Authentication successful for {}", username);
+                    writer.write_all(b"235 Authentication successful\r\n").await?;
+                } else {
+                    warn!("Authentication failed for {}", username);
+                    writer.write_all(b"535 Authentication failed\r\n").await?;
+                    self.error_count += 1;
+                }
+            }
+        }
+
+        Ok(())
     }
 }

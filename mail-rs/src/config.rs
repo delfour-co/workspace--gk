@@ -23,6 +23,9 @@ pub struct SmtpConfig {
     pub enable_tls: bool,
     pub tls_cert_path: Option<String>,
     pub tls_key_path: Option<String>,
+    pub enable_auth: bool,
+    pub auth_database_url: Option<String>,
+    pub require_auth: bool,
     pub max_message_size: usize,
 }
 
@@ -66,6 +69,9 @@ impl Config {
                 enable_tls: false,
                 tls_cert_path: None,
                 tls_key_path: None,
+                enable_auth: false,
+                auth_database_url: None,
+                require_auth: false,
                 max_message_size: 10 * 1024 * 1024, // 10MB
             },
             imap: ImapConfig {

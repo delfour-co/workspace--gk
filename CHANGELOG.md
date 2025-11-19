@@ -47,11 +47,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-server fallback (tries all MX servers in order)
 - Async queue worker with configurable intervals
 
-**Testing** (66/66 tests passing)
+**Sprint 3: TLS + Authentication**
+- TLS/STARTTLS support:
+  - TLS configuration loading from PEM files
+  - Self-signed certificate generation for development
+  - STARTTLS command parsing (full upgrade implementation in progress)
+  - Certificate validation and error handling
+- SMTP AUTH implementation:
+  - PLAIN authentication mechanism (RFC 4616)
+  - LOGIN authentication mechanism
+  - Argon2 password hashing for secure storage
+  - User management (add, authenticate, delete)
+  - SQLite-based user database
+  - Base64 credential encoding/decoding
+  - AUTH capability advertisement in EHLO
+  - Require TLS before AUTH (configurable)
+  - Optional authentication requirement for sending
+- Security module:
+  - `security::auth` - Authentication mechanisms and user management
+  - `security::tls` - TLS configuration and certificate handling
+- Configuration enhancements:
+  - `enable_tls`, `tls_cert_path`, `tls_key_path`
+  - `enable_auth`, `auth_database_url`, `require_auth`
+
+**Testing** (62/62 tests passing)
 - Unit tests for all modules
 - Integration tests for SMTP receiver
 - Integration tests for SMTP sender/queue
 - Security test cases (injection, limits, timeouts)
+- Auth mechanism tests (PLAIN, LOGIN decoding)
+- TLS certificate generation and loading tests
 - Doc-tests for all public APIs
 - Full rustdoc documentation for public APIs
 - Structured logging with tracing

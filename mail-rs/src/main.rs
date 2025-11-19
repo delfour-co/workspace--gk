@@ -1,12 +1,6 @@
-mod config;
-mod error;
-mod smtp;
-mod storage;
-mod utils;
-
-use crate::config::Config;
-use crate::smtp::SmtpServer;
-use crate::storage::MaildirStorage;
+use mail_rs::config::Config;
+use mail_rs::smtp::SmtpServer;
+use mail_rs::storage::MaildirStorage;
 use std::sync::Arc;
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
@@ -40,8 +34,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize storage
     let storage = Arc::new(MaildirStorage::new(config.storage.maildir_path.clone()));
 
-    // Start SMTP server
-    let smtp_server = SmtpServer::new(config, storage);
+    // Start SMTP server with security features
+    let smtp_server = SmtpServer::with_security(config, storage).await?;
     smtp_server.run().await?;
 
     Ok(())

@@ -44,10 +44,12 @@
 //! - [`error`]: Error types and handling
 //! - [`smtp`]: SMTP protocol implementation
 //! - [`storage`]: Email storage backends
+//! - [`security`]: TLS and authentication
 //! - [`utils`]: Utility functions (validation, etc.)
 
 pub mod config;
 pub mod error;
+pub mod security;
 pub mod smtp;
 pub mod storage;
 pub mod utils;

@@ -14,8 +14,6 @@
 //! - SPF validation (future)
 
 use crate::error::{MailError, Result};
-use crate::smtp::SmtpCommand;
-use std::net::SocketAddr;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
 use tracing::{debug, error, info};

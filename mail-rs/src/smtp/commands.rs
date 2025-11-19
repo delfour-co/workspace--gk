@@ -28,6 +28,11 @@ pub enum SmtpCommand {
     Rset,
     Quit,
     Noop,
+    /// STARTTLS command to upgrade connection to TLS
+    Starttls,
+    /// AUTH command with mechanism and optional initial response
+    /// Format: AUTH mechanism [initial-response]
+    Auth(String, Option<String>),
     Unknown(String),
 }
 
@@ -69,6 +74,17 @@ impl SmtpCommand {
             "RSET" => Ok(SmtpCommand::Rset),
             "QUIT" => Ok(SmtpCommand::Quit),
             "NOOP" => Ok(SmtpCommand::Noop),
+            "STARTTLS" => Ok(SmtpCommand::Starttls),
+            "AUTH" => {
+                // Parse AUTH mechanism [initial-response]
+                if args.is_empty() {
+                    return Err(MailError::SmtpProtocol("AUTH requires mechanism".to_string()));
+                }
+                let auth_parts: Vec<&str> = args.splitn(2, ' ').collect();
+                let mechanism = auth_parts[0].to_string();
+                let initial_response = auth_parts.get(1).map(|s| s.to_string());
+                Ok(SmtpCommand::Auth(mechanism, initial_response))
+            }
             _ => Ok(SmtpCommand::Unknown(command)),
         }
     }
