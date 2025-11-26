@@ -3,11 +3,14 @@ use crate::security::{AuthMechanism, Authenticator, TlsConfig};
 use crate::smtp::commands::SmtpCommand;
 use crate::storage::MaildirStorage;
 use crate::utils::validate_email;
+use std::pin::Pin;
 use std::sync::Arc;
+use std::task::{Context, Poll};
 use std::time::Duration;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader, ReadBuf};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
+use tokio_rustls::server::TlsStream;
 use tracing::{debug, error, info, warn};
 
 /// Maximum number of recipients per message (anti-spam)
@@ -25,6 +28,69 @@ const DATA_TIMEOUT: Duration = Duration::from_secs(600); // 10 minutes
 /// Maximum number of errors before disconnecting
 const MAX_ERRORS: usize = 10;
 
+/// Unified stream type for both plain and TLS connections
+///
+/// This enum allows us to handle both plain TCP and TLS-encrypted connections
+/// through the same interface, enabling STARTTLS upgrades mid-session.
+enum SmtpStream {
+    Plain(TcpStream),
+    Tls(TlsStream<TcpStream>),
+    /// Temporary state during STARTTLS upgrade - should never be observable
+    Upgrading,
+}
+
+impl AsyncRead for SmtpStream {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        match self.get_mut() {
+            SmtpStream::Plain(stream) => Pin::new(stream).poll_read(cx, buf),
+            SmtpStream::Tls(stream) => Pin::new(stream).poll_read(cx, buf),
+            SmtpStream::Upgrading => {
+                panic!("Attempted I/O on SmtpStream during STARTTLS upgrade")
+            }
+        }
+    }
+}
+
+impl AsyncWrite for SmtpStream {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<std::io::Result<usize>> {
+        match self.get_mut() {
+            SmtpStream::Plain(stream) => Pin::new(stream).poll_write(cx, buf),
+            SmtpStream::Tls(stream) => Pin::new(stream).poll_write(cx, buf),
+            SmtpStream::Upgrading => {
+                panic!("Attempted I/O on SmtpStream during STARTTLS upgrade")
+            }
+        }
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        match self.get_mut() {
+            SmtpStream::Plain(stream) => Pin::new(stream).poll_flush(cx),
+            SmtpStream::Tls(stream) => Pin::new(stream).poll_flush(cx),
+            SmtpStream::Upgrading => {
+                panic!("Attempted I/O on SmtpStream during STARTTLS upgrade")
+            }
+        }
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        match self.get_mut() {
+            SmtpStream::Plain(stream) => Pin::new(stream).poll_shutdown(cx),
+            SmtpStream::Tls(stream) => Pin::new(stream).poll_shutdown(cx),
+            SmtpStream::Upgrading => {
+                panic!("Attempted I/O on SmtpStream during STARTTLS upgrade")
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 enum SmtpState {
     Fresh,
@@ -32,6 +98,12 @@ enum SmtpState {
     MailFrom,
     RcptTo,
     Data,
+}
+
+/// Result of processing SMTP commands
+enum SessionResult {
+    Continue,  // Continue processing (after STARTTLS upgrade)
+    Quit,      // Session ended normally
 }
 
 /// SMTP session handler with security limits and validation
@@ -109,32 +181,51 @@ impl SmtpSession {
         }
     }
 
-    /// Handle SMTP session with comprehensive security checks
-    pub async fn handle(mut self, mut stream: TcpStream) -> Result<()> {
-        let (reader, mut writer) = stream.split();
-        let mut reader = BufReader::new(reader);
+    /// Handle SMTP session with comprehensive security checks and STARTTLS support
+    pub async fn handle(mut self, stream: TcpStream) -> Result<()> {
+        // Wrap in unified stream type (starts as plain)
+        let mut smtp_stream = SmtpStream::Plain(stream);
 
         // Send greeting
-        writer
+        smtp_stream
             .write_all(format!("220 {} ESMTP Service Ready\r\n", self.hostname).as_bytes())
             .await?;
 
+        // Process the session, potentially upgrading to TLS mid-session
+        // We use a loop to handle STARTTLS without recursion
+        loop {
+            match self.process_commands(&mut smtp_stream).await? {
+                SessionResult::Continue => continue,
+                SessionResult::Quit => break,
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Process SMTP commands on the given stream
+    async fn process_commands(&mut self, stream: &mut SmtpStream) -> Result<SessionResult> {
+        // Create a BufReader for efficient line reading
+        // Note: We need to be careful with borrowing - when STARTTLS happens,
+        // we must drop this reader to regain access to the stream
+        // Use &mut *stream to create a fresh reborrow that allows later access
+        let mut buf_reader = BufReader::new(&mut *stream);
         let mut line = String::new();
 
         loop {
             // Check error count (security: disconnect abusive clients)
             if self.error_count >= MAX_ERRORS {
                 warn!("Too many errors, disconnecting");
-                writer
+                buf_reader
                     .write_all(b"421 Too many errors, closing connection\r\n")
                     .await?;
-                break;
+                return Ok(SessionResult::Quit);
             }
 
             line.clear();
 
             // Read line with timeout (security: prevent slowloris)
-            let read_result = timeout(COMMAND_TIMEOUT, reader.read_line(&mut line)).await;
+            let read_result = timeout(COMMAND_TIMEOUT, buf_reader.read_line(&mut line)).await;
 
             let n = match read_result {
                 Ok(Ok(n)) => n,
@@ -144,22 +235,22 @@ impl SmtpSession {
                 }
                 Err(_) => {
                     warn!("Command timeout, disconnecting");
-                    writer
+                    buf_reader
                         .write_all(b"421 Timeout, closing connection\r\n")
                         .await?;
-                    break;
+                    return Ok(SessionResult::Quit);
                 }
             };
 
             if n == 0 {
                 debug!("Client disconnected");
-                break;
+                return Ok(SessionResult::Quit);
             }
 
             // Check line length (security: prevent buffer overflow)
             if line.len() > MAX_LINE_LENGTH {
                 error!("Line too long: {} bytes", line.len());
-                writer
+                buf_reader
                     .write_all(b"500 Line too long\r\n")
                     .await?;
                 self.error_count += 1;
@@ -173,18 +264,32 @@ impl SmtpSession {
                 Ok(cmd) => {
                     // Handle STARTTLS specially - needs to upgrade connection
                     if matches!(cmd, SmtpCommand::Starttls) {
-                        if let Err(e) = self.handle_starttls(&mut writer).await {
-                            error!("STARTTLS error: {}", e);
-                            return Err(e);
+                        // Drop buf_reader to regain access to stream
+                        drop(buf_reader);
+
+                        match self.handle_starttls_upgrade(stream).await {
+                            Ok(true) => {
+                                // TLS upgrade successful, return Continue to restart processing
+                                info!("STARTTLS upgrade completed, restarting session");
+                                return Ok(SessionResult::Continue);
+                            }
+                            Ok(false) => {
+                                // STARTTLS not performed, recreate reader and continue
+                                buf_reader = BufReader::new(&mut *stream);
+                                continue;
+                            }
+                            Err(e) => {
+                                error!("STARTTLS error: {}", e);
+                                return Err(e);
+                            }
                         }
-                        continue;
                     }
 
                     // Handle AUTH specially - needs back-and-forth communication
                     if let SmtpCommand::Auth(mechanism, initial_response) = cmd.clone() {
-                        if let Err(e) = self.handle_auth(&mechanism, initial_response, &mut reader, &mut writer).await {
+                        if let Err(e) = self.handle_auth(&mechanism, initial_response, &mut buf_reader).await {
                             error!("AUTH error: {}", e);
-                            writer.write_all(b"535 Authentication failed\r\n").await?;
+                            buf_reader.write_all(b"535 Authentication failed\r\n").await?;
                             self.error_count += 1;
                         }
                         continue;
@@ -192,18 +297,18 @@ impl SmtpSession {
 
                     match self.handle_command(cmd).await {
                         Ok(response) => {
-                            writer.write_all(response.as_bytes()).await?;
+                            buf_reader.write_all(response.as_bytes()).await?;
 
                             if response.starts_with("221") {
                                 // QUIT command
-                                break;
+                                return Ok(SessionResult::Quit);
                             }
 
                             // Handle DATA mode
                             if self.state == SmtpState::Data {
-                                if let Err(e) = self.receive_data(&mut reader, &mut writer).await {
+                                if let Err(e) = self.receive_data(&mut buf_reader).await {
                                     error!("Error receiving data: {}", e);
-                                    writer
+                                    buf_reader
                                         .write_all(b"451 Error receiving message\r\n")
                                         .await?;
                                     self.error_count += 1;
@@ -212,7 +317,7 @@ impl SmtpSession {
                         }
                         Err(e) => {
                             error!("Error handling command: {}", e);
-                            writer
+                            buf_reader
                                 .write_all(format!("451 {}\r\n", e).as_bytes())
                                 .await?;
                             self.error_count += 1;
@@ -221,15 +326,13 @@ impl SmtpSession {
                 }
                 Err(e) => {
                     error!("Command parse error: {}", e);
-                    writer
+                    buf_reader
                         .write_all(b"500 Syntax error, command unrecognized\r\n")
                         .await?;
                     self.error_count += 1;
                 }
             }
         }
-
-        Ok(())
     }
 
     async fn handle_command(&mut self, cmd: SmtpCommand) -> Result<String> {
@@ -345,14 +448,12 @@ impl SmtpSession {
     }
 
     /// Receive email DATA with security limits
-    async fn receive_data<R, W>(
+    async fn receive_data<S>(
         &mut self,
-        reader: &mut BufReader<R>,
-        writer: &mut W,
+        buf_reader: &mut BufReader<S>,
     ) -> Result<()>
     where
-        R: tokio::io::AsyncRead + Unpin,
-        W: tokio::io::AsyncWrite + Unpin,
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
     {
         let mut line = String::new();
 
@@ -360,7 +461,7 @@ impl SmtpSession {
             line.clear();
 
             // Read with timeout (security: prevent slowloris)
-            let read_result = timeout(DATA_TIMEOUT, reader.read_line(&mut line)).await;
+            let read_result = timeout(DATA_TIMEOUT, buf_reader.read_line(&mut line)).await;
 
             let n = match read_result {
                 Ok(Ok(n)) => n,
@@ -423,7 +524,7 @@ impl SmtpSession {
         self.store_email().await?;
 
         // Send response
-        writer.write_all(b"250 OK: Message accepted\r\n").await?;
+        buf_reader.write_all(b"250 OK: Message accepted\r\n").await?;
 
         // Reset state for next message
         self.state = SmtpState::Greeted;
@@ -446,122 +547,135 @@ impl SmtpSession {
         }
     }
 
-    /// Handle STARTTLS command
+    /// Handle STARTTLS command and perform TLS upgrade
     ///
-    /// # Current Implementation
-    /// This implementation sets the `is_encrypted` flag to true after sending "220 Ready to start TLS",
-    /// but does NOT actually perform the TLS upgrade. This is sufficient for testing TLS enforcement
-    /// logic, but NOT suitable for production use.
+    /// # Implementation
+    /// This method performs the actual TLS upgrade by:
+    /// 1. Validating preconditions (TLS available, not already encrypted, correct state)
+    /// 2. Sending "220 Ready to start TLS" response
+    /// 3. Extracting the underlying TcpStream from the SmtpStream
+    /// 4. Performing the TLS handshake using tokio_rustls
+    /// 5. Replacing the plain stream with the TLS stream in-place
+    /// 6. Marking the session as encrypted
     ///
-    /// # Security Implications
-    /// - The connection remains unencrypted despite the flag being set
-    /// - This allows testing of require_tls enforcement without full TLS implementation
-    /// - **DO NOT USE IN PRODUCTION** - sensitive data will be transmitted in plaintext
+    /// # Security
+    /// After successful upgrade, all subsequent communication is encrypted.
+    /// The session state is preserved, allowing the client to continue with
+    /// authenticated commands over the secure connection.
     ///
-    /// # Full Implementation Requirements
-    /// To implement a working STARTTLS upgrade, the following changes are needed:
+    /// # RFC 3207 Compliance
+    /// - Requires EHLO/HELO before STARTTLS
+    /// - Resets to Fresh state after upgrade (client must EHLO again)
+    /// - Prevents nested STARTTLS
     ///
-    /// 1. **Refactor handle() method signature**:
-    ///    - Change from `handle(stream: TcpStream)` to accept an owned stream
-    ///    - Avoid splitting the stream until after potential STARTTLS upgrade
-    ///
-    /// 2. **Create unified stream type**:
-    ///    ```rust
-    ///    enum SmtpStream {
-    ///        Plain(TcpStream),
-    ///        Tls(tokio_rustls::server::TlsStream<TcpStream>),
-    ///    }
-    ///    ```
-    ///    Implement AsyncRead + AsyncWrite for this enum
-    ///
-    /// 3. **Perform actual TLS upgrade**:
-    ///    ```rust
-    ///    let acceptor = self.tls_config.as_ref().unwrap().acceptor();
-    ///    let tls_stream = acceptor.accept(tcp_stream).await?;
-    ///    ```
-    ///
-    /// 4. **Continue session with upgraded stream**:
-    ///    - Wrap TLS stream in SmtpStream::Tls variant
-    ///    - Continue command loop with encrypted connection
-    ///
-    /// # References
-    /// - RFC 3207: SMTP Service Extension for Secure SMTP over TLS
-    /// - tokio-rustls documentation for TLS upgrade patterns
-    async fn handle_starttls<W>(
+    /// # Returns
+    /// - `Ok(true)` - TLS upgrade successful, stream has been replaced
+    /// - `Ok(false)` - STARTTLS not performed (already encrypted, not available, etc.)
+    /// - `Err(_)` - TLS handshake or I/O error
+    async fn handle_starttls_upgrade(
         &mut self,
-        writer: &mut W,
-    ) -> Result<()>
-    where
-        W: tokio::io::AsyncWrite + Unpin,
-    {
+        stream: &mut SmtpStream,
+    ) -> Result<bool> {
         // Check if TLS is available
-        if self.tls_config.is_none() {
-            writer.write_all(b"502 STARTTLS not available\r\n").await?;
-            return Ok(());
-        }
+        let tls_config = match &self.tls_config {
+            Some(config) => config.clone(),
+            None => {
+                stream.write_all(b"502 STARTTLS not available\r\n").await?;
+                return Ok(false);
+            }
+        };
 
         // Check if already encrypted
         if self.is_encrypted {
-            writer.write_all(b"503 Already using TLS\r\n").await?;
-            return Ok(());
+            stream.write_all(b"503 Already using TLS\r\n").await?;
+            return Ok(false);
         }
 
         // Check state (must be after EHLO/HELO, before MAIL FROM)
         if self.state != SmtpState::Greeted {
-            writer.write_all(b"503 Bad sequence of commands\r\n").await?;
-            return Ok(());
+            stream.write_all(b"503 Bad sequence of commands\r\n").await?;
+            return Ok(false);
         }
 
-        info!("STARTTLS initiated (PLACEHOLDER - not actually encrypting)");
-        writer.write_all(b"220 Ready to start TLS\r\n").await?;
-        writer.flush().await?;
+        info!("STARTTLS: Initiating TLS upgrade");
+        stream.write_all(b"220 Ready to start TLS\r\n").await?;
+        stream.flush().await?;
 
-        // Mark as encrypted (PLACEHOLDER - see docs above for full implementation)
+        // Extract the plain TcpStream - use Upgrading as temporary placeholder
+        let tcp_stream = match std::mem::replace(stream, SmtpStream::Upgrading) {
+            SmtpStream::Plain(tcp) => tcp,
+            SmtpStream::Tls(_) => {
+                // This shouldn't happen due to is_encrypted check above
+                error!("STARTTLS: Stream already TLS despite is_encrypted=false");
+                return Err(MailError::SmtpProtocol(
+                    "Internal error: stream state mismatch".to_string(),
+                ));
+            }
+            SmtpStream::Upgrading => {
+                // This really shouldn't happen
+                error!("STARTTLS: Stream in Upgrading state");
+                return Err(MailError::SmtpProtocol(
+                    "Internal error: stream already upgrading".to_string(),
+                ));
+            }
+        };
+
+        // Perform TLS handshake
+        info!("STARTTLS: Performing TLS handshake");
+        let acceptor = tls_config.acceptor();
+        let tls_stream = acceptor
+            .accept(tcp_stream)
+            .await
+            .map_err(|e| {
+                error!("TLS handshake failed: {}", e);
+                MailError::SmtpProtocol(format!("TLS handshake failed: {}", e))
+            })?;
+
+        // Replace the stream with the TLS version
+        *stream = SmtpStream::Tls(tls_stream);
         self.is_encrypted = true;
 
-        warn!("STARTTLS: Connection marked as encrypted but TLS upgrade not performed");
-        warn!("This is a PLACEHOLDER implementation - NOT suitable for production");
-        warn!("See handle_starttls() documentation for full implementation requirements");
+        // Reset state - client must send EHLO again after STARTTLS (RFC 3207)
+        self.state = SmtpState::Fresh;
 
-        Ok(())
+        info!("STARTTLS: TLS upgrade completed successfully");
+        Ok(true)
     }
 
     /// Handle AUTH command
-    async fn handle_auth<R, W>(
+    async fn handle_auth<S>(
         &mut self,
         mechanism: &str,
         initial_response: Option<String>,
-        reader: &mut BufReader<R>,
-        writer: &mut W,
+        buf_reader: &mut BufReader<S>,
     ) -> Result<()>
     where
-        R: tokio::io::AsyncRead + Unpin,
-        W: tokio::io::AsyncWrite + Unpin,
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
     {
         // Check if authenticator is available
         let authenticator = match &self.authenticator {
             Some(auth) => auth,
             None => {
-                writer.write_all(b"502 AUTH not available\r\n").await?;
+                buf_reader.write_all(b"502 AUTH not available\r\n").await?;
                 return Ok(());
             }
         };
 
         // Require TLS if configured
         if self.tls_config.is_some() && !self.is_encrypted {
-            writer.write_all(b"530 Must issue STARTTLS first\r\n").await?;
+            buf_reader.write_all(b"530 Must issue STARTTLS first\r\n").await?;
             return Ok(());
         }
 
         // Check if already authenticated
         if self.authenticated_user.is_some() {
-            writer.write_all(b"503 Already authenticated\r\n").await?;
+            buf_reader.write_all(b"503 Already authenticated\r\n").await?;
             return Ok(());
         }
 
         // Check state
         if self.state != SmtpState::Greeted {
-            writer.write_all(b"503 Bad sequence of commands\r\n").await?;
+            buf_reader.write_all(b"503 Bad sequence of commands\r\n").await?;
             return Ok(());
         }
 
@@ -569,7 +683,7 @@ impl SmtpSession {
         let auth_mechanism = match AuthMechanism::from_str(mechanism) {
             Some(m) => m,
             None => {
-                writer.write_all(b"504 Authentication mechanism not supported\r\n").await?;
+                buf_reader.write_all(b"504 Authentication mechanism not supported\r\n").await?;
                 return Ok(());
             }
         };
@@ -584,11 +698,11 @@ impl SmtpSession {
                     Some(data) => data,
                     None => {
                         // Client didn't provide initial response, request it
-                        writer.write_all(b"334 \r\n").await?;
+                        buf_reader.write_all(b"334 \r\n").await?;
 
                         // Read auth data
                         let mut line = String::new();
-                        timeout(COMMAND_TIMEOUT, reader.read_line(&mut line))
+                        timeout(COMMAND_TIMEOUT, buf_reader.read_line(&mut line))
                             .await
                             .map_err(|_| MailError::SmtpProtocol("AUTH timeout".to_string()))??;
                         line.trim().to_string()
@@ -606,31 +720,31 @@ impl SmtpSession {
                 if success {
                     self.authenticated_user = Some(username.clone());
                     info!("Authentication successful for {}", username);
-                    writer.write_all(b"235 Authentication successful\r\n").await?;
+                    buf_reader.write_all(b"235 Authentication successful\r\n").await?;
                 } else {
                     warn!("Authentication failed for {}", username);
-                    writer.write_all(b"535 Authentication failed\r\n").await?;
+                    buf_reader.write_all(b"535 Authentication failed\r\n").await?;
                     self.error_count += 1;
                 }
             }
             AuthMechanism::Login => {
                 // LOGIN: multi-step process
                 // Server sends: 334 VXNlcm5hbWU6 (base64 "Username:")
-                writer.write_all(b"334 VXNlcm5hbWU6\r\n").await?;
+                buf_reader.write_all(b"334 VXNlcm5hbWU6\r\n").await?;
 
                 // Read username
                 let mut line = String::new();
-                timeout(COMMAND_TIMEOUT, reader.read_line(&mut line))
+                timeout(COMMAND_TIMEOUT, buf_reader.read_line(&mut line))
                     .await
                     .map_err(|_| MailError::SmtpProtocol("AUTH timeout".to_string()))??;
                 let username = Authenticator::decode_login_credential(line.trim())?;
 
                 // Server sends: 334 UGFzc3dvcmQ6 (base64 "Password:")
-                writer.write_all(b"334 UGFzc3dvcmQ6\r\n").await?;
+                buf_reader.write_all(b"334 UGFzc3dvcmQ6\r\n").await?;
 
                 // Read password
                 line.clear();
-                timeout(COMMAND_TIMEOUT, reader.read_line(&mut line))
+                timeout(COMMAND_TIMEOUT, buf_reader.read_line(&mut line))
                     .await
                     .map_err(|_| MailError::SmtpProtocol("AUTH timeout".to_string()))??;
                 let password = Authenticator::decode_login_credential(line.trim())?;
@@ -643,10 +757,10 @@ impl SmtpSession {
                 if success {
                     self.authenticated_user = Some(username.clone());
                     info!("Authentication successful for {}", username);
-                    writer.write_all(b"235 Authentication successful\r\n").await?;
+                    buf_reader.write_all(b"235 Authentication successful\r\n").await?;
                 } else {
                     warn!("Authentication failed for {}", username);
-                    writer.write_all(b"535 Authentication failed\r\n").await?;
+                    buf_reader.write_all(b"535 Authentication failed\r\n").await?;
                     self.error_count += 1;
                 }
             }

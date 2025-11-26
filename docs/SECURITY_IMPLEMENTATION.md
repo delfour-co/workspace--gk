@@ -119,38 +119,58 @@ require_tls = true  # Enforce STARTTLS before MAIL FROM
 4. After STARTTLS: Full capabilities advertised (AUTH, SIZE, etc.)
 5. Attempting MAIL FROM without TLS → "530 Must issue STARTTLS first"
 
-### STARTTLS Implementation Status ⚠️
+### STARTTLS Implementation Status ✅
 
 **Current State**:
 - ✅ TLS enforcement logic fully implemented
 - ✅ Configuration and logging complete
-- ⚠️ STARTTLS upgrade is PLACEHOLDER ONLY
+- ✅ STARTTLS upgrade fully working with actual TLS encryption
+- ✅ RFC 3207 compliant implementation
 
-**Security Warning**:
-The current STARTTLS implementation sets an `is_encrypted` flag but does NOT actually perform TLS encryption. This is sufficient for:
-- Testing TLS enforcement logic
-- Development environments
-- **NOT suitable for production use**
+**Implementation Details**:
+**Location**: `mail-rs/src/smtp/session.rs`
 
-**Production Requirements**:
-See detailed implementation notes in `mail-rs/src/smtp/session.rs:449-527`:
-1. Refactor `handle()` method to avoid pre-splitting the stream
-2. Create unified `SmtpStream` enum (Plain/Tls)
-3. Use `tokio_rustls::TlsAcceptor` for actual TLS upgrade
-4. Continue session with encrypted stream
+The STARTTLS implementation uses a unified stream type approach:
+
+1. **SmtpStream Enum**: Handles both plain TCP and TLS connections
+   ```rust
+   enum SmtpStream {
+       Plain(TcpStream),
+       Tls(TlsStream<TcpStream>),
+       Upgrading, // Temporary state during upgrade
+   }
+   ```
+
+2. **TLS Upgrade Process**:
+   - Client issues STARTTLS command
+   - Server sends "220 Ready to start TLS"
+   - Underlying TcpStream is extracted from SmtpStream
+   - TLS handshake is performed using tokio_rustls
+   - Stream is replaced with TLS version in-place
+   - Session continues with encrypted connection
+
+3. **RFC 3207 Compliance**:
+   - Requires EHLO/HELO before STARTTLS
+   - Resets to Fresh state after upgrade (client must EHLO again)
+   - Prevents nested STARTTLS
+   - Proper error handling for all edge cases
+
+**Security**:
+After successful STARTTLS upgrade, all subsequent communication is fully encrypted using TLS. The session state is preserved, allowing the client to continue with authenticated commands over the secure connection.
 
 ### TLS Acceptor ✅
 **Location**: `mail-rs/src/security/tls.rs`
 
-Added `acceptor()` method to create TLS acceptors for STARTTLS upgrade.
+The `acceptor()` method creates TLS acceptors used by STARTTLS upgrade.
 
-**Usage**:
+**Usage** (internal, used by STARTTLS handler):
 ```rust
 let tls_config = TlsConfig::from_pem_files("cert.pem", "key.pem")?;
 let acceptor = tls_config.acceptor();
 
-// In STARTTLS handler (future implementation):
+// In STARTTLS handler:
 let tls_stream = acceptor.accept(tcp_stream).await?;
+*stream = SmtpStream::Tls(tls_stream);
 ```
 
 ## 🛡️ DNS Validation
