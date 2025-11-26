@@ -17,9 +17,11 @@ pub struct OllamaLlm {
 
 impl OllamaLlm {
     pub fn new(model_name: String) -> Self {
+        let base_url = std::env::var("OLLAMA_URL")
+            .unwrap_or_else(|_| "http://localhost:11434".to_string());
         Self {
             model_name,
-            base_url: "http://localhost:11434".to_string(),
+            base_url,
             client: reqwest::Client::new(),
         }
     }

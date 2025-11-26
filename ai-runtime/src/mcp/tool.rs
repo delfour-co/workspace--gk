@@ -31,7 +31,7 @@ impl Tool {
         self
     }
 
-    /// Convert to JSON schema for LLM
+    /// Convert to JSON schema for LLM (Ollama function calling format)
     pub fn to_schema(&self) -> serde_json::Value {
         let mut properties = serde_json::Map::new();
         let mut required = Vec::new();
@@ -49,13 +49,17 @@ impl Tool {
             }
         }
 
+        // Ollama expects this format with "type": "function"
         serde_json::json!({
-            "name": self.name,
-            "description": self.description,
-            "parameters": {
-                "type": "object",
-                "properties": properties,
-                "required": required,
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": properties,
+                    "required": required,
+                }
             }
         })
     }
@@ -117,7 +121,10 @@ mod tests {
         ));
 
         let schema = tool.to_schema();
-        assert_eq!(schema["name"], "send_email");
-        assert!(schema["parameters"]["required"].as_array().unwrap().len() == 2);
+        // Check Ollama function calling format
+        assert_eq!(schema["type"], "function");
+        assert_eq!(schema["function"]["name"], "send_email");
+        assert_eq!(schema["function"]["description"], "Send an email");
+        assert!(schema["function"]["parameters"]["required"].as_array().unwrap().len() == 2);
     }
 }

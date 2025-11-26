@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test WebSocket - GK AI Runtime</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #0f172a;
+            color: #f1f5f9;
+        }
+        h1 {
+            color: #3b82f6;
+        }
+        #status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        #status.connecting {
+            background: #fbbf24;
+            color: #000;
+        }
+        #status.connected {
+            background: #10b981;
+            color: #fff;
+        }
+        #status.disconnected {
+            background: #ef4444;
+            color: #fff;
+        }
+        #messages {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 5px;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .user {
+            background: #1e40af;
+            text-align: right;
+        }
+        .assistant {
+            background: #6d28d9;
+        }
+        .tool {
+            background: #065f46;
+            font-size: 0.9em;
+        }
+        .error {
+            background: #7f1d1d;
+        }
+        #input-area {
+            display: flex;
+            gap: 10px;
+        }
+        #messageInput {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #334155;
+            border-radius: 5px;
+            background: #1e293b;
+            color: #f1f5f9;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 20px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        button:disabled {
+            background: #475569;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔌 Test WebSocket - GK AI Runtime</h1>
+
+    <div id="status" class="connecting">Connexion en cours...</div>
+
+    <div id="messages"></div>
+
+    <div id="input-area">
+        <input
+            type="text"
+            id="messageInput"
+            placeholder="Tapez votre message... (ex: Liste mes emails)"
+            disabled
+        />
+        <button id="sendBtn" disabled>Envoyer</button>
+    </div>
+
+    <script>
+        let ws = null;
+        const statusEl = document.getElementById('status');
+        const messagesEl = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+
+        function updateStatus(status, message) {
+            statusEl.className = status;
+            statusEl.textContent = message;
+        }
+
+        function addMessage(type, content) {
+            const msgEl = document.createElement('div');
+            msgEl.className = `message ${type}`;
+            msgEl.textContent = content;
+            messagesEl.appendChild(msgEl);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        function connect() {
+            ws = new WebSocket('ws://localhost:8888/ws');
+
+            ws.onopen = () => {
+                updateStatus('connected', '✅ Connecté au serveur');
+                messageInput.disabled = false;
+                sendBtn.disabled = false;
+                addMessage('assistant', 'Connexion établie. Vous pouvez envoyer des messages.');
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('Received:', data);
+
+                    switch (data.type) {
+                        case 'chunk':
+                            addMessage('assistant', data.content);
+                            break;
+                        case 'tool_call':
+                            addMessage('tool', `🔧 Appel outil: ${data.tool}`);
+                            break;
+                        case 'tool_result':
+                            addMessage('tool', `✅ Résultat: ${JSON.stringify(data.result, null, 2)}`);
+                            break;
+                        case 'done':
+                            addMessage('assistant', `✅ ${data.content}`);
+                            break;
+                        case 'error':
+                            addMessage('error', `❌ Erreur: ${data.message}`);
+                            break;
+                    }
+                } catch (e) {
+                    console.error('Parse error:', e);
+                    addMessage('error', `Erreur de parsing: ${e.message}`);
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                updateStatus('disconnected', '❌ Erreur de connexion');
+                addMessage('error', 'Erreur WebSocket');
+            };
+
+            ws.onclose = () => {
+                updateStatus('disconnected', '🔌 Déconnecté');
+                messageInput.disabled = true;
+                sendBtn.disabled = true;
+                addMessage('assistant', 'Connexion fermée. Rechargez la page pour reconnecter.');
+            };
+        }
+
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message || !ws || ws.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            addMessage('user', message);
+
+            const payload = {
+                type: 'chat',
+                message: message
+            };
+
+            ws.send(JSON.stringify(payload));
+            messageInput.value = '';
+        }
+
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        sendBtn.addEventListener('click', sendMessage);
+
+        // Connect on load
+        connect();
+    </script>
+</body>
+</html>

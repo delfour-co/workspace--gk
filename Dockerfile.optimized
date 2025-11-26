@@ -1,0 +1,226 @@
+# =============================================================================
+# GK Mail - Optimized Multi-stage Dockerfile
+# =============================================================================
+# Optimizations:
+# - Dependency caching for faster rebuilds
+# - Smaller runtime images with minimal dependencies
+# - Non-root user for security
+# - Health checks built-in
+# - Metadata labels
+# - Stripped binaries
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: Dependency caching layer
+# -----------------------------------------------------------------------------
+FROM rust:1.85-bookworm AS chef
+
+RUN cargo install cargo-chef
+WORKDIR /app
+
+# -----------------------------------------------------------------------------
+# Stage 2: Prepare recipe
+# -----------------------------------------------------------------------------
+FROM chef AS planner
+
+COPY Cargo.toml Cargo.lock ./
+COPY mail-rs ./mail-rs
+COPY mcp-mail-server ./mcp-mail-server
+COPY ai-runtime ./ai-runtime
+COPY proxy-rs ./proxy-rs
+
+RUN cargo chef prepare --recipe-path recipe.json
+
+# -----------------------------------------------------------------------------
+# Stage 3: Build dependencies (cached)
+# -----------------------------------------------------------------------------
+FROM chef AS builder-deps
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=planner /app/recipe.json recipe.json
+
+# Build dependencies - this layer is cached unless dependencies change
+RUN cargo chef cook --release --recipe-path recipe.json
+
+# -----------------------------------------------------------------------------
+# Stage 4: Build application
+# -----------------------------------------------------------------------------
+FROM builder-deps AS builder
+
+COPY Cargo.toml Cargo.lock ./
+COPY mail-rs ./mail-rs
+COPY mcp-mail-server ./mcp-mail-server
+COPY ai-runtime ./ai-runtime
+COPY proxy-rs ./proxy-rs
+COPY e2e-tests ./e2e-tests
+
+# Build all binaries
+RUN cargo build --release -p mail-rs -p mcp-mail-server -p ai-runtime -p proxy-rs
+
+# Strip binaries to reduce size
+RUN strip /app/target/release/mail-rs \
+    /app/target/release/mail-user \
+    /app/target/release/add-user \
+    /app/target/release/mcp-mail-server \
+    /app/target/release/ai-runtime \
+    /app/target/release/proxy-rs
+
+# -----------------------------------------------------------------------------
+# Stage 5: Runtime base image
+# -----------------------------------------------------------------------------
+FROM debian:bookworm-slim AS runtime-base
+
+# Install runtime dependencies and create non-root user
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -r gkmail --gid=1000 \
+    && useradd -r -g gkmail --uid=1000 --home-dir=/app --shell=/sbin/nologin gkmail
+
+# -----------------------------------------------------------------------------
+# Stage 6: mail-rs runtime image
+# -----------------------------------------------------------------------------
+FROM runtime-base AS mail-rs
+
+# Install SQLite for mail-rs
+RUN apt-get update && apt-get install -y \
+    libsqlite3-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy binaries
+COPY --from=builder /app/target/release/mail-rs /app/mail-rs
+COPY --from=builder /app/target/release/mail-user /app/mail-user
+COPY --from=builder /app/target/release/add-user /app/add-user
+
+# Create data directories and set permissions
+RUN mkdir -p /data/maildir /data/queue /data/db /tmp/maildir \
+    && chown -R gkmail:gkmail /app /data /tmp/maildir
+
+# Metadata labels
+LABEL org.opencontainers.image.title="GK Mail - mail-rs"
+LABEL org.opencontainers.image.description="SMTP/IMAP server for GK Mail Suite"
+LABEL org.opencontainers.image.vendor="GK Mail"
+LABEL org.opencontainers.image.version="0.1.0"
+
+# Environment variables
+ENV RUST_LOG=info
+ENV SMTP_ADDR=0.0.0.0:2525
+ENV IMAP_ADDR=0.0.0.0:1993
+ENV MAILDIR_PATH=/tmp/maildir
+ENV QUEUE_PATH=/data/queue
+ENV DATABASE_URL=sqlite:///data/db/users.db
+ENV DOMAIN=localhost
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Switch to non-root user
+USER gkmail
+
+EXPOSE 2525 1993 8080
+
+CMD ["/app/mail-rs"]
+
+# -----------------------------------------------------------------------------
+# Stage 7: mcp-mail-server runtime image
+# -----------------------------------------------------------------------------
+FROM runtime-base AS mcp-mail-server
+
+WORKDIR /app
+
+COPY --from=builder /app/target/release/mcp-mail-server /app/mcp-mail-server
+
+RUN mkdir -p /data/maildir \
+    && chown -R gkmail:gkmail /app /data
+
+LABEL org.opencontainers.image.title="GK Mail - mcp-mail-server"
+LABEL org.opencontainers.image.description="MCP server for mail operations"
+LABEL org.opencontainers.image.vendor="GK Mail"
+LABEL org.opencontainers.image.version="0.1.0"
+
+ENV RUST_LOG=info
+ENV MCP_PORT=8090
+ENV MAILDIR_PATH=/data/maildir
+ENV SMTP_HOST=mail-rs
+ENV SMTP_PORT=2525
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8090/health || exit 1
+
+USER gkmail
+
+EXPOSE 8090
+
+CMD ["/app/mcp-mail-server"]
+
+# -----------------------------------------------------------------------------
+# Stage 8: ai-runtime runtime image
+# -----------------------------------------------------------------------------
+FROM runtime-base AS ai-runtime
+
+WORKDIR /app
+
+COPY --from=builder /app/target/release/ai-runtime /app/ai-runtime
+
+RUN chown -R gkmail:gkmail /app
+
+LABEL org.opencontainers.image.title="GK Mail - ai-runtime"
+LABEL org.opencontainers.image.description="AI assistant runtime with LLM integration"
+LABEL org.opencontainers.image.vendor="GK Mail"
+LABEL org.opencontainers.image.version="0.1.0"
+
+ENV RUST_LOG=info
+ENV AI_PORT=8888
+ENV MCP_URL=http://mcp-mail-server:8090
+ENV OLLAMA_URL=http://ollama:11434
+ENV OLLAMA_MODEL=llama3.1:8b
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8888/health || exit 1
+
+USER gkmail
+
+EXPOSE 8888
+
+CMD ["/app/ai-runtime"]
+
+# -----------------------------------------------------------------------------
+# Stage 9: proxy-rs runtime image
+# -----------------------------------------------------------------------------
+FROM runtime-base AS proxy-rs
+
+WORKDIR /app
+
+COPY --from=builder /app/target/release/proxy-rs /app/proxy-rs
+
+RUN mkdir -p /data/certs /app/config \
+    && chown -R gkmail:gkmail /app /data
+
+LABEL org.opencontainers.image.title="GK Mail - proxy-rs"
+LABEL org.opencontainers.image.description="Reverse proxy with TLS termination"
+LABEL org.opencontainers.image.vendor="GK Mail"
+LABEL org.opencontainers.image.version="0.1.0"
+
+ENV RUST_LOG=info
+ENV HTTP_PORT=80
+ENV HTTPS_PORT=443
+ENV CERT_DIR=/data/certs
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:80/health || exit 1
+
+USER gkmail
+
+EXPOSE 80 443
+
+CMD ["/app/proxy-rs"]

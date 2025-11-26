@@ -4,6 +4,7 @@
 
 mod llm;
 mod mcp;
+mod websocket;
 
 use axum::{
     extract::State,
@@ -23,9 +24,9 @@ use tracing::{info, warn, Level};
 use tracing_subscriber::FmtSubscriber;
 
 /// Application state
-struct AppState {
-    llm: Arc<dyn LlmEngine>,
-    mcp_registry: Arc<Mutex<McpRegistry>>,
+pub struct AppState {
+    pub llm: Arc<dyn LlmEngine>,
+    pub mcp_registry: Arc<Mutex<McpRegistry>>,
 }
 
 /// Chat request
@@ -78,9 +79,11 @@ async fn main() -> anyhow::Result<()> {
     info!("📡 Registering MCP servers...");
 
     // Register mail server
+    let mcp_url = std::env::var("MCP_URL").unwrap_or_else(|_| "http://localhost:8090".to_string());
+    info!("📡 MCP URL: {}", mcp_url);
     let mail_server = McpServer::new(
         "mail".to_string(),
-        "http://localhost:8090".to_string(),
+        mcp_url,
     );
 
     match mcp_registry.register_server(mail_server).await {
@@ -101,12 +104,14 @@ async fn main() -> anyhow::Result<()> {
         .route("/", get(health_check))
         .route("/health", get(health_check))
         .route("/chat", post(chat_handler))
+        .route("/ws", get(websocket::ws_handler))
         .with_state(state);
 
     // Start server
     let addr = "0.0.0.0:8888";
     info!("🌐 Server listening on http://{}", addr);
-    info!("💬 Try: curl -X POST http://localhost:8888/chat -H 'Content-Type: application/json' -d '{{\"message\": \"Envoie un email à john@example.com pour dire bonjour\"}}'");
+    info!("💬 HTTP: curl -X POST http://localhost:8888/chat -H 'Content-Type: application/json' -d '{{\"message\": \"Liste mes emails\"}}'");
+    info!("🔌 WebSocket: ws://localhost:8888/ws");
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;

@@ -132,8 +132,8 @@ fn validate_domain_part(domain: &str) -> Result<()> {
         return validate_ip_literal(&domain[1..domain.len() - 1]);
     }
 
-    // Validate domain name structure
-    if !domain.contains('.') {
+    // Validate domain name structure (allow localhost for testing)
+    if !domain.contains('.') && domain.to_lowercase() != "localhost" {
         return Err(MailError::InvalidEmail(
             "Domain must contain at least one dot".to_string(),
         ));

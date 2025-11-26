@@ -1,0 +1,78 @@
+# proxy-rs Configuration Example
+# ===============================
+# Copy this file to config.toml and adjust as needed.
+
+[server]
+# Address to listen on for HTTPS (or HTTP if TLS is disabled)
+listen_addr = "0.0.0.0:443"
+
+# Port for HTTP to HTTPS redirect (only used when TLS is enabled)
+http_redirect_port = 80
+
+# Default request timeout in seconds
+timeout_seconds = 30
+
+# TLS Configuration (optional - remove this section for HTTP-only mode)
+[tls]
+# Option 1: Use existing certificates
+# cert_path = "/etc/proxy-rs/certs/fullchain.pem"
+# key_path = "/etc/proxy-rs/certs/privkey.pem"
+
+# Option 2: Automatic Let's Encrypt certificates (ACME)
+acme_email = "admin@example.com"
+acme_directory = "https://acme-v02.api.letsencrypt.org/directory"
+# For testing, use staging: "https://acme-staging-v02.api.letsencrypt.org/directory"
+
+# Domains to request certificates for
+domains = ["mail.example.com", "webmail.example.com"]
+
+# Route Configuration
+# ====================
+# Routes are matched in order of path_prefix length (longest first)
+
+# Mail API route
+[[routes]]
+host = "mail.example.com"
+path_prefix = "/api"
+backend = "http://127.0.0.1:8080"
+strip_prefix = false
+health_check = "/api/health"
+timeout_seconds = 60
+
+# Mail Web UI route
+[[routes]]
+host = "mail.example.com"
+path_prefix = "/"
+backend = "http://127.0.0.1:3000"
+strip_prefix = false
+health_check = "/health"
+
+# Webmail route (all paths)
+[[routes]]
+host = "webmail.example.com"
+path_prefix = "/"
+backend = "http://127.0.0.1:3000"
+strip_prefix = false
+
+# Wildcard route (catch-all for any host)
+# [[routes]]
+# host = "*"
+# path_prefix = "/"
+# backend = "http://127.0.0.1:8080"
+# strip_prefix = false
+
+# Development Configuration Example
+# ==================================
+# For local development without TLS:
+#
+# [server]
+# listen_addr = "0.0.0.0:8443"
+# http_redirect_port = 8080
+# timeout_seconds = 30
+#
+# # No [tls] section = HTTP-only mode
+#
+# [[routes]]
+# host = "localhost"
+# path_prefix = "/"
+# backend = "http://127.0.0.1:3000"

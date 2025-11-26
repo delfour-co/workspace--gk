@@ -46,6 +46,7 @@ toml = { workspace = true }
 ring = "0.17"
 rsa = "0.9"
 sha2 = "0.10"
+rand = "0.8"
 
 # Logging
 tracing = { workspace = true }

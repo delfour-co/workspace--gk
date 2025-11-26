@@ -102,6 +102,28 @@ impl TlsConfig {
     pub fn server_config(&self) -> Arc<ServerConfig> {
         self.server_config.clone()
     }
+
+    /// Create a TLS acceptor for STARTTLS
+    ///
+    /// This creates a tokio_rustls::TlsAcceptor that can upgrade a TcpStream to TLS.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use mail_rs::security::TlsConfig;
+    /// use tokio::net::TcpStream;
+    ///
+    /// # async fn example(stream: TcpStream) -> Result<(), Box<dyn std::error::Error>> {
+    /// let tls_config = TlsConfig::from_pem_files("cert.pem", "key.pem")?;
+    /// let acceptor = tls_config.acceptor();
+    ///
+    /// // Upgrade the stream to TLS
+    /// let tls_stream = acceptor.accept(stream).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn acceptor(&self) -> tokio_rustls::TlsAcceptor {
+        tokio_rustls::TlsAcceptor::from(self.server_config.clone())
+    }
 }
 
 /// Generate self-signed certificate for development/testing

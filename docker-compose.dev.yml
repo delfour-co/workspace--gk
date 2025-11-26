@@ -1,0 +1,122 @@
+# =============================================================================
+# GK Mail - Docker Compose (Development Mode)
+# =============================================================================
+# Usage:
+#   docker-compose -f docker-compose.dev.yml up -d
+#   docker-compose -f docker-compose.dev.yml logs -f web-ui
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Mail Server (SMTP + IMAP)
+  # ---------------------------------------------------------------------------
+  mail-rs:
+    build:
+      context: .
+      target: mail-rs
+    container_name: gk-mail-rs-dev
+    ports:
+      - "2525:2525"
+      - "1993:1993"
+    volumes:
+      - ./data/maildir:/data/maildir
+      - ./data/queue:/data/queue
+      - ./data/db:/data/db
+    environment:
+      - RUST_LOG=debug
+      - DOMAIN=localhost
+    networks:
+      - gk-network-dev
+
+  # ---------------------------------------------------------------------------
+  # MCP Mail Server
+  # ---------------------------------------------------------------------------
+  mcp-mail-server:
+    build:
+      context: .
+      target: mcp-mail-server
+    container_name: gk-mcp-mail-dev
+    depends_on:
+      - mail-rs
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./data/maildir:/data/maildir:ro
+    environment:
+      - RUST_LOG=debug
+      - MAILDIR_PATH=/data/maildir
+      - SMTP_HOST=mail-rs
+      - SMTP_PORT=2525
+    networks:
+      - gk-network-dev
+
+  # ---------------------------------------------------------------------------
+  # Ollama LLM Server
+  # ---------------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: gk-ollama-dev
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - gk-network-dev
+
+  # ---------------------------------------------------------------------------
+  # AI Runtime
+  # ---------------------------------------------------------------------------
+  ai-runtime:
+    build:
+      context: .
+      target: ai-runtime
+    container_name: gk-ai-runtime-dev
+    depends_on:
+      ollama:
+        condition: service_healthy
+      mcp-mail-server:
+        condition: service_started
+    ports:
+      - "8888:8888"
+    environment:
+      - RUST_LOG=debug
+      - MCP_URL=http://mcp-mail-server:8090
+      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_MODEL=llama3.1:8b
+    networks:
+      - gk-network-dev
+
+  # ---------------------------------------------------------------------------
+  # Web UI (Development with hot-reload)
+  # ---------------------------------------------------------------------------
+  web-ui:
+    build:
+      context: ./web-ui
+      target: development
+    container_name: gk-web-ui-dev
+    depends_on:
+      - ai-runtime
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./web-ui:/app
+      - /app/node_modules
+    environment:
+      - VITE_WS_URL=ws://localhost:8888/ws
+    networks:
+      - gk-network-dev
+
+networks:
+  gk-network-dev:
+    driver: bridge
+
+volumes:
+  ollama-data:

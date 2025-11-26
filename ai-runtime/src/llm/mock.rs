@@ -30,7 +30,12 @@ impl MockLlm {
         }
 
         // Intent: List emails (check before "lis" to avoid substring match)
-        if (message_lower.contains("liste") || message_lower.contains("montre"))
+        if (message_lower.contains("liste")
+            || message_lower.contains("montre")
+            || message_lower.contains("j'ai")
+            || message_lower.contains("ai-je")
+            || message_lower.contains("nouveau")
+            || message_lower.contains("reçu"))
             && (message_lower.contains("email") || message_lower.contains("mail"))
         {
             return self.parse_list_emails(message);

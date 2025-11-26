@@ -1,0 +1,573 @@
+//! Admin API Handlers
+//!
+//! This module provides admin-only endpoints for system management:
+//! - User management (CRUD operations)
+//! - System statistics and monitoring
+//! - Configuration management
+//! - Log access
+
+use axum::{
+    extract::{Path, Query, State},
+    http::StatusCode,
+    Json,
+};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Arc;
+use tracing::{error, info};
+
+use super::handlers::{ApiError, AppState};
+
+// Helper to create status-specific errors
+fn database_error(msg: impl std::fmt::Display) -> (StatusCode, Json<ApiError>) {
+    (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::new(&format!("Database error: {}", msg))))
+}
+
+fn not_found_error(msg: impl std::fmt::Display) -> (StatusCode, Json<ApiError>) {
+    (StatusCode::NOT_FOUND, Json(ApiError::new(&msg.to_string())))
+}
+
+fn bad_request_error(msg: impl std::fmt::Display) -> (StatusCode, Json<ApiError>) {
+    (StatusCode::BAD_REQUEST, Json(ApiError::new(&msg.to_string())))
+}
+
+fn conflict_error(msg: impl std::fmt::Display) -> (StatusCode, Json<ApiError>) {
+    (StatusCode::CONFLICT, Json(ApiError::new(&msg.to_string())))
+}
+
+fn internal_error(msg: impl std::fmt::Display) -> (StatusCode, Json<ApiError>) {
+    (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::new(&msg.to_string())))
+}
+
+/// User creation request
+#[derive(Debug, Deserialize)]
+pub struct CreateUserRequest {
+    pub email: String,
+    pub password: String,
+    pub full_name: Option<String>,
+}
+
+/// User update request
+#[derive(Debug, Deserialize)]
+pub struct UpdateUserRequest {
+    pub password: Option<String>,
+    pub full_name: Option<String>,
+    pub is_active: Option<bool>,
+}
+
+/// User response
+#[derive(Debug, Serialize)]
+pub struct UserResponse {
+    pub id: i64,
+    pub email: String,
+    pub full_name: Option<String>,
+    pub created_at: String,
+    pub last_login: Option<String>,
+    pub is_active: bool,
+}
+
+/// System statistics response
+#[derive(Debug, Serialize)]
+pub struct SystemStatsResponse {
+    pub total_users: i64,
+    pub active_users: i64,
+    pub total_emails: i64,
+    pub disk_usage_mb: f64,
+    pub uptime_seconds: u64,
+    pub version: String,
+}
+
+/// Query parameters for listing users
+#[derive(Debug, Deserialize)]
+pub struct ListUsersQuery {
+    pub page: Option<u32>,
+    pub limit: Option<u32>,
+    pub search: Option<String>,
+}
+
+/// Paginated response
+#[derive(Debug, Serialize)]
+pub struct PaginatedResponse<T> {
+    pub items: Vec<T>,
+    pub total: i64,
+    pub page: u32,
+    pub limit: u32,
+    pub total_pages: u32,
+}
+
+/// List all users (admin only)
+///
+/// GET /api/admin/users?page=1&limit=20&search=john
+pub async fn list_users(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<ListUsersQuery>,
+) -> Result<Json<PaginatedResponse<UserResponse>>, ApiError> {
+    let page = params.page.unwrap_or(1).max(1);
+    let limit = params.limit.unwrap_or(20).min(100); // Max 100 per page
+    let offset = (page - 1) * limit;
+
+    info!(
+        "Admin: Listing users (page={}, limit={}, search={:?})",
+        page, limit, params.search
+    );
+
+    // Get database connection
+    let db = &state.authenticator.db;
+
+    // Build query based on search
+    let (users_query, count_query) = if let Some(search) = &params.search {
+        let search_pattern = format!("%{}%", search);
+        (
+            sqlx::query_as::<_, (i64, String, Option<String>, String, Option<String>, bool)>(
+                "SELECT id, email, full_name, created_at, last_login, is_active
+                 FROM users
+                 WHERE email LIKE ? OR full_name LIKE ?
+                 ORDER BY created_at DESC
+                 LIMIT ? OFFSET ?"
+            )
+            .bind(&search_pattern)
+            .bind(&search_pattern)
+            .bind(limit as i64)
+            .bind(offset as i64),
+            sqlx::query_scalar::<_, i64>(
+                "SELECT COUNT(*) FROM users WHERE email LIKE ? OR full_name LIKE ?"
+            )
+            .bind(&search_pattern)
+            .bind(&search_pattern),
+        )
+    } else {
+        (
+            sqlx::query_as::<_, (i64, String, Option<String>, String, Option<String>, bool)>(
+                "SELECT id, email, full_name, created_at, last_login, is_active
+                 FROM users
+                 ORDER BY created_at DESC
+                 LIMIT ? OFFSET ?"
+            )
+            .bind(limit as i64)
+            .bind(offset as i64),
+            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users"),
+        )
+    };
+
+    // Execute queries
+    let users = users_query
+        .fetch_all(&**db)
+        .await
+        .map_err(|e| {
+            error!("Failed to fetch users: {}", e);
+            ApiError::Database(e.to_string())
+        })?;
+
+    let total = count_query
+        .fetch_one(&**db)
+        .await
+        .map_err(|e| {
+            error!("Failed to count users: {}", e);
+            ApiError::Database(e.to_string())
+        })?;
+
+    // Convert to response
+    let items = users
+        .into_iter()
+        .map(|(id, email, full_name, created_at, last_login, is_active)| UserResponse {
+            id,
+            email,
+            full_name,
+            created_at,
+            last_login,
+            is_active,
+        })
+        .collect();
+
+    let total_pages = ((total as f64) / (limit as f64)).ceil() as u32;
+
+    Ok(Json(PaginatedResponse {
+        items,
+        total,
+        page,
+        limit,
+        total_pages,
+    }))
+}
+
+/// Get user by ID (admin only)
+///
+/// GET /api/admin/users/:id
+pub async fn get_user(
+    State(state): State<Arc<AppState>>,
+    Path(user_id): Path<i64>,
+) -> Result<Json<UserResponse>, ApiError> {
+    info!("Admin: Getting user {}", user_id);
+
+    let db = &state.authenticator.db;
+
+    let user = sqlx::query_as::<_, (i64, String, Option<String>, String, Option<String>, bool)>(
+        "SELECT id, email, full_name, created_at, last_login, is_active FROM users WHERE id = ?"
+    )
+    .bind(user_id)
+    .fetch_optional(&**db)
+    .await
+    .map_err(|e| {
+        error!("Failed to fetch user: {}", e);
+        ApiError::Database(e.to_string())
+    })?;
+
+    match user {
+        Some((id, email, full_name, created_at, last_login, is_active)) => {
+            Ok(Json(UserResponse {
+                id,
+                email,
+                full_name,
+                created_at,
+                last_login,
+                is_active,
+            }))
+        }
+        None => Err(ApiError::NotFound(format!("User {} not found", user_id))),
+    }
+}
+
+/// Create a new user (admin only)
+///
+/// POST /api/admin/users
+pub async fn create_user(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<CreateUserRequest>,
+) -> Result<(StatusCode, Json<UserResponse>), ApiError> {
+    info!("Admin: Creating user {}", req.email);
+
+    // Validate email format
+    if !req.email.contains('@') {
+        return Err(ApiError::BadRequest("Invalid email format".to_string()));
+    }
+
+    // Validate password strength
+    if req.password.len() < 8 {
+        return Err(ApiError::BadRequest("Password must be at least 8 characters".to_string()));
+    }
+
+    // Hash password using authenticator
+    let password_hash = state
+        .authenticator
+        .hash_password(&req.password)
+        .map_err(|e| {
+            error!("Failed to hash password: {}", e);
+            ApiError::Internal("Failed to create user".to_string())
+        })?;
+
+    let db = &state.authenticator.db;
+
+    // Insert user
+    let result = sqlx::query(
+        "INSERT INTO users (email, password_hash, full_name, is_active) VALUES (?, ?, ?, ?)"
+    )
+    .bind(&req.email)
+    .bind(&password_hash)
+    .bind(&req.full_name)
+    .bind(true)
+    .execute(&**db)
+    .await
+    .map_err(|e| {
+        error!("Failed to create user: {}", e);
+        if e.to_string().contains("UNIQUE") {
+            ApiError::Conflict("User already exists".to_string())
+        } else {
+            ApiError::Database(e.to_string())
+        }
+    })?;
+
+    let user_id = result.last_insert_rowid();
+
+    // Fetch created user
+    let user = sqlx::query_as::<_, (i64, String, Option<String>, String, Option<String>, bool)>(
+        "SELECT id, email, full_name, created_at, last_login, is_active FROM users WHERE id = ?"
+    )
+    .bind(user_id)
+    .fetch_one(&**db)
+    .await
+    .map_err(|e| {
+        error!("Failed to fetch created user: {}", e);
+        ApiError::Database(e.to_string())
+    })?;
+
+    let (id, email, full_name, created_at, last_login, is_active) = user;
+
+    info!("User {} created successfully", email);
+
+    Ok((
+        StatusCode::CREATED,
+        Json(UserResponse {
+            id,
+            email,
+            full_name,
+            created_at,
+            last_login,
+            is_active,
+        }),
+    ))
+}
+
+/// Update user (admin only)
+///
+/// PATCH /api/admin/users/:id
+pub async fn update_user(
+    State(state): State<Arc<AppState>>,
+    Path(user_id): Path<i64>,
+    Json(req): Json<UpdateUserRequest>,
+) -> Result<Json<UserResponse>, ApiError> {
+    info!("Admin: Updating user {}", user_id);
+
+    let db = &state.authenticator.db;
+
+    // Check if user exists
+    let exists = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users WHERE id = ?")
+        .bind(user_id)
+        .fetch_one(&**db)
+        .await
+        .map_err(|e| {
+            error!("Failed to check user existence: {}", e);
+            ApiError::Database(e.to_string())
+        })?;
+
+    if exists == 0 {
+        return Err(ApiError::NotFound(format!("User {} not found", user_id)));
+    }
+
+    // Build update query dynamically
+    let mut updates = Vec::new();
+    let mut params: Vec<String> = Vec::new();
+
+    if let Some(password) = &req.password {
+        if password.len() < 8 {
+            return Err(ApiError::BadRequest("Password must be at least 8 characters".to_string()));
+        }
+        let password_hash = state
+            .authenticator
+            .hash_password(password)
+            .map_err(|e| {
+                error!("Failed to hash password: {}", e);
+                ApiError::Internal("Failed to update user".to_string())
+            })?;
+        updates.push("password_hash = ?");
+        params.push(password_hash);
+    }
+
+    if let Some(full_name) = &req.full_name {
+        updates.push("full_name = ?");
+        params.push(full_name.clone());
+    }
+
+    if let Some(is_active) = req.is_active {
+        updates.push("is_active = ?");
+        params.push(if is_active { "1" } else { "0" }.to_string());
+    }
+
+    if updates.is_empty() {
+        return Err(ApiError::BadRequest("No fields to update".to_string()));
+    }
+
+    // Execute update
+    let query = format!("UPDATE users SET {} WHERE id = ?", updates.join(", "));
+    let mut q = sqlx::query(&query);
+
+    for param in params {
+        q = q.bind(param);
+    }
+    q = q.bind(user_id);
+
+    q.execute(&**db).await.map_err(|e| {
+        error!("Failed to update user: {}", e);
+        ApiError::Database(e.to_string())
+    })?;
+
+    // Fetch updated user
+    let user = sqlx::query_as::<_, (i64, String, Option<String>, String, Option<String>, bool)>(
+        "SELECT id, email, full_name, created_at, last_login, is_active FROM users WHERE id = ?"
+    )
+    .bind(user_id)
+    .fetch_one(&**db)
+    .await
+    .map_err(|e| {
+        error!("Failed to fetch updated user: {}", e);
+        ApiError::Database(e.to_string())
+    })?;
+
+    let (id, email, full_name, created_at, last_login, is_active) = user;
+
+    info!("User {} updated successfully", email);
+
+    Ok(Json(UserResponse {
+        id,
+        email,
+        full_name,
+        created_at,
+        last_login,
+        is_active,
+    }))
+}
+
+/// Delete user (admin only)
+///
+/// DELETE /api/admin/users/:id
+pub async fn delete_user(
+    State(state): State<Arc<AppState>>,
+    Path(user_id): Path<i64>,
+) -> Result<StatusCode, ApiError> {
+    info!("Admin: Deleting user {}", user_id);
+
+    let db = &state.authenticator.db;
+
+    let result = sqlx::query("DELETE FROM users WHERE id = ?")
+        .bind(user_id)
+        .execute(&**db)
+        .await
+        .map_err(|e| {
+            error!("Failed to delete user: {}", e);
+            ApiError::Database(e.to_string())
+        })?;
+
+    if result.rows_affected() == 0 {
+        return Err(ApiError::NotFound(format!("User {} not found", user_id)));
+    }
+
+    info!("User {} deleted successfully", user_id);
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Get system statistics (admin only)
+///
+/// GET /api/admin/stats
+pub async fn get_system_stats(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<SystemStatsResponse>, ApiError> {
+    info!("Admin: Getting system statistics");
+
+    let db = &state.authenticator.db;
+
+    // Get total users
+    let total_users = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users")
+        .fetch_one(&**db)
+        .await
+        .map_err(|e| {
+            error!("Failed to count users: {}", e);
+            ApiError::Database(e.to_string())
+        })?;
+
+    // Get active users (logged in within last 30 days)
+    let active_users = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM users WHERE last_login > datetime('now', '-30 days')"
+    )
+    .fetch_one(&**db)
+    .await
+    .map_err(|e| {
+        error!("Failed to count active users: {}", e);
+        ApiError::Database(e.to_string())
+    })?;
+
+    // Calculate maildir disk usage (approximate)
+    let maildir_path = std::path::Path::new(&state.maildir_root);
+    let disk_usage_mb = if maildir_path.exists() {
+        calculate_dir_size(maildir_path)
+            .await
+            .unwrap_or(0.0)
+    } else {
+        0.0
+    };
+
+    // Get uptime (placeholder - would need to track start time)
+    let uptime_seconds = 0; // TODO: Track server start time
+
+    // Get total emails (approximate by counting files in Maildir)
+    let total_emails = count_maildir_messages(maildir_path).await.unwrap_or(0);
+
+    Ok(Json(SystemStatsResponse {
+        total_users,
+        active_users,
+        total_emails,
+        disk_usage_mb,
+        uptime_seconds,
+        version: env!("CARGO_PKG_VERSION").to_string(),
+    }))
+}
+
+/// Calculate directory size in MB
+async fn calculate_dir_size(path: &std::path::Path) -> Result<f64, std::io::Error> {
+    let mut total_size = 0u64;
+
+    if path.is_dir() {
+        let mut entries = tokio::fs::read_dir(path).await?;
+        while let Some(entry) = entries.next_entry().await? {
+            let metadata = entry.metadata().await?;
+            if metadata.is_file() {
+                total_size += metadata.len();
+            } else if metadata.is_dir() {
+                total_size += calculate_dir_size(&entry.path()).await.unwrap_or(0.0) as u64;
+            }
+        }
+    }
+
+    Ok(total_size as f64 / 1_048_576.0) // Convert to MB
+}
+
+/// Count messages in Maildir
+async fn count_maildir_messages(path: &std::path::Path) -> Result<i64, std::io::Error> {
+    let mut count = 0i64;
+
+    if path.is_dir() {
+        let mut entries = tokio::fs::read_dir(path).await?;
+        while let Some(entry) = entries.next_entry().await? {
+            let metadata = entry.metadata().await?;
+            if metadata.is_dir() {
+                // Check for Maildir structure (cur, new, tmp subdirectories)
+                let cur_path = entry.path().join("cur");
+                let new_path = entry.path().join("new");
+
+                for subdir in [cur_path, new_path] {
+                    if subdir.exists() {
+                        let mut subentries = tokio::fs::read_dir(&subdir).await?;
+                        while let Some(_) = subentries.next_entry().await? {
+                            count += 1;
+                        }
+                    }
+                }
+
+                // Recursively count in subdirectories
+                count += count_maildir_messages(&entry.path()).await.unwrap_or(0);
+            }
+        }
+    }
+
+    Ok(count)
+}
+
+/// Get server configuration (admin only)
+///
+/// GET /api/admin/config
+pub async fn get_config(
+    State(_state): State<Arc<AppState>>,
+) -> Result<Json<HashMap<String, serde_json::Value>>, ApiError> {
+    info!("Admin: Getting configuration");
+
+    let mut config = HashMap::new();
+
+    // Return safe configuration values (no secrets)
+    config.insert(
+        "version".to_string(),
+        serde_json::json!(env!("CARGO_PKG_VERSION")),
+    );
+    config.insert(
+        "smtp_enabled".to_string(),
+        serde_json::json!(true),
+    );
+    config.insert(
+        "imap_enabled".to_string(),
+        serde_json::json!(true),
+    );
+    config.insert(
+        "tls_enabled".to_string(),
+        serde_json::json!(std::env::var("ENABLE_STARTTLS").unwrap_or("false".to_string())),
+    );
+
+    Ok(Json(config))
+}

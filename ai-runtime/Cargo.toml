@@ -33,6 +33,7 @@ thiserror = { workspace = true }
 uuid = { workspace = true }
 async-trait = "0.1"
 regex = "1"
+futures = "0.3"
 
 # Config
 config = { workspace = true }

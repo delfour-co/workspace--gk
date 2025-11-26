@@ -1,0 +1,112 @@
+# =============================================================================
+# GK Mail - Docker Compose
+# =============================================================================
+# Usage:
+#   docker-compose up -d              # Start all services
+#   docker-compose up -d --build      # Rebuild and start
+#   docker-compose logs -f            # Follow logs
+#   docker-compose down               # Stop all services
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Mail Server (SMTP + IMAP)
+  # ---------------------------------------------------------------------------
+  mail-rs:
+    build:
+      context: .
+      target: mail-rs
+    container_name: gk-mail-rs
+    restart: unless-stopped
+    ports:
+      - "${SMTP_PORT:-2525}:2525"
+      - "${IMAP_PORT:-1993}:1993"
+    volumes:
+      - mail-data:/data
+    environment:
+      - RUST_LOG=${RUST_LOG:-info}
+      - DOMAIN=${MAIL_DOMAIN:-localhost}
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2525"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - gk-network
+
+  # ---------------------------------------------------------------------------
+  # MCP Mail Server (Tool Bridge)
+  # ---------------------------------------------------------------------------
+  mcp-mail-server:
+    build:
+      context: .
+      target: mcp-mail-server
+    container_name: gk-mcp-mail
+    restart: unless-stopped
+    depends_on:
+      mail-rs:
+        condition: service_healthy
+    volumes:
+      - mail-data:/data:ro
+    environment:
+      - RUST_LOG=${RUST_LOG:-info}
+      - MAILDIR_PATH=/data/maildir
+      - SMTP_HOST=mail-rs
+      - SMTP_PORT=2525
+    networks:
+      - gk-network
+
+  # ---------------------------------------------------------------------------
+  # AI Runtime (LLM Orchestrator)
+  # ---------------------------------------------------------------------------
+  ai-runtime:
+    build:
+      context: .
+      target: ai-runtime
+    container_name: gk-ai-runtime
+    restart: unless-stopped
+    depends_on:
+      - mcp-mail-server
+    ports:
+      - "${AI_PORT:-8888}:8888"
+    environment:
+      - RUST_LOG=${RUST_LOG:-info}
+      - MCP_URL=http://mcp-mail-server:8090
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.1:8b}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - gk-network
+
+  # ---------------------------------------------------------------------------
+  # Web UI (Frontend)
+  # ---------------------------------------------------------------------------
+  web-ui:
+    build:
+      context: ./web-ui
+      target: production
+      args:
+        - VITE_WS_URL=/ws
+    container_name: gk-web-ui
+    restart: unless-stopped
+    depends_on:
+      - ai-runtime
+    ports:
+      - "${WEB_PORT:-80}:80"
+    networks:
+      - gk-network
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  gk-network:
+    driver: bridge
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  mail-data:
+    driver: local

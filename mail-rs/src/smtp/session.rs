@@ -58,6 +58,7 @@ pub struct SmtpSession {
     is_encrypted: bool,
     authenticated_user: Option<String>,
     require_auth: bool,
+    require_tls: bool,
 }
 
 impl SmtpSession {
@@ -76,6 +77,7 @@ impl SmtpSession {
             is_encrypted: false,
             authenticated_user: None,
             require_auth: false,
+            require_tls: false,
         }
     }
 
@@ -87,6 +89,7 @@ impl SmtpSession {
         tls_config: Option<Arc<TlsConfig>>,
         authenticator: Option<Arc<Authenticator>>,
         require_auth: bool,
+        require_tls: bool,
     ) -> Self {
         Self {
             state: SmtpState::Fresh,
@@ -102,6 +105,7 @@ impl SmtpSession {
             is_encrypted: false,
             authenticated_user: None,
             require_auth,
+            require_tls,
         }
     }
 
@@ -241,17 +245,21 @@ impl SmtpSession {
 
                 // Build EHLO response with capabilities
                 let mut response = format!("250-{} Hello {}\r\n", self.hostname, domain);
-                response.push_str(&format!("250-SIZE {}\r\n", self.max_message_size));
 
                 // Advertise STARTTLS if available and not already encrypted
                 if self.tls_config.is_some() && !self.is_encrypted {
                     response.push_str("250-STARTTLS\r\n");
                 }
 
-                // Advertise AUTH if available and (encrypted or not requiring TLS)
-                if let Some(ref _auth) = self.authenticator {
-                    if self.is_encrypted || self.tls_config.is_none() {
-                        response.push_str("250-AUTH PLAIN LOGIN\r\n");
+                // Only advertise other capabilities if TLS is not required or already active
+                if !self.require_tls || self.is_encrypted {
+                    response.push_str(&format!("250-SIZE {}\r\n", self.max_message_size));
+
+                    // Advertise AUTH if available and (encrypted or not requiring TLS)
+                    if let Some(ref _auth) = self.authenticator {
+                        if self.is_encrypted || self.tls_config.is_none() {
+                            response.push_str("250-AUTH PLAIN LOGIN\r\n");
+                        }
                     }
                 }
 
@@ -259,6 +267,12 @@ impl SmtpSession {
                 Ok(response)
             }
             (SmtpState::Greeted | SmtpState::MailFrom | SmtpState::RcptTo, SmtpCommand::MailFrom(from)) => {
+                // Check TLS if required
+                if self.require_tls && !self.is_encrypted {
+                    warn!("MAIL FROM rejected: TLS required");
+                    return Ok("530 Must issue STARTTLS first\r\n".to_string());
+                }
+
                 // Check authentication if required
                 if self.require_auth && self.authenticated_user.is_none() {
                     warn!("MAIL FROM rejected: authentication required");
@@ -434,8 +448,45 @@ impl SmtpSession {
 
     /// Handle STARTTLS command
     ///
-    /// NOTE: This is a placeholder implementation. Full STARTTLS support requires
-    /// refactoring the handle() method to work with upgraded TLS streams.
+    /// # Current Implementation
+    /// This implementation sets the `is_encrypted` flag to true after sending "220 Ready to start TLS",
+    /// but does NOT actually perform the TLS upgrade. This is sufficient for testing TLS enforcement
+    /// logic, but NOT suitable for production use.
+    ///
+    /// # Security Implications
+    /// - The connection remains unencrypted despite the flag being set
+    /// - This allows testing of require_tls enforcement without full TLS implementation
+    /// - **DO NOT USE IN PRODUCTION** - sensitive data will be transmitted in plaintext
+    ///
+    /// # Full Implementation Requirements
+    /// To implement a working STARTTLS upgrade, the following changes are needed:
+    ///
+    /// 1. **Refactor handle() method signature**:
+    ///    - Change from `handle(stream: TcpStream)` to accept an owned stream
+    ///    - Avoid splitting the stream until after potential STARTTLS upgrade
+    ///
+    /// 2. **Create unified stream type**:
+    ///    ```rust
+    ///    enum SmtpStream {
+    ///        Plain(TcpStream),
+    ///        Tls(tokio_rustls::server::TlsStream<TcpStream>),
+    ///    }
+    ///    ```
+    ///    Implement AsyncRead + AsyncWrite for this enum
+    ///
+    /// 3. **Perform actual TLS upgrade**:
+    ///    ```rust
+    ///    let acceptor = self.tls_config.as_ref().unwrap().acceptor();
+    ///    let tls_stream = acceptor.accept(tcp_stream).await?;
+    ///    ```
+    ///
+    /// 4. **Continue session with upgraded stream**:
+    ///    - Wrap TLS stream in SmtpStream::Tls variant
+    ///    - Continue command loop with encrypted connection
+    ///
+    /// # References
+    /// - RFC 3207: SMTP Service Extension for Secure SMTP over TLS
+    /// - tokio-rustls documentation for TLS upgrade patterns
     async fn handle_starttls<W>(
         &mut self,
         writer: &mut W,
@@ -455,29 +506,22 @@ impl SmtpSession {
             return Ok(());
         }
 
-        // Check state
+        // Check state (must be after EHLO/HELO, before MAIL FROM)
         if self.state != SmtpState::Greeted {
             writer.write_all(b"503 Bad sequence of commands\r\n").await?;
             return Ok(());
         }
 
-        info!("STARTTLS initiated");
+        info!("STARTTLS initiated (PLACEHOLDER - not actually encrypting)");
         writer.write_all(b"220 Ready to start TLS\r\n").await?;
         writer.flush().await?;
 
-        // TODO: Implement TLS upgrade
-        // This requires:
-        // 1. Taking ownership of the stream
-        // 2. Creating TlsAcceptor from tls_config
-        // 3. Upgrading the stream: tls_acceptor.accept(stream).await?
-        // 4. Continuing the session with the TLS stream
-        //
-        // The challenge is that we have a split stream here, and we need
-        // the original TcpStream to upgrade it. This requires refactoring
-        // the handle() method signature and flow.
-
+        // Mark as encrypted (PLACEHOLDER - see docs above for full implementation)
         self.is_encrypted = true;
-        warn!("STARTTLS: TLS upgrade not fully implemented yet");
+
+        warn!("STARTTLS: Connection marked as encrypted but TLS upgrade not performed");
+        warn!("This is a PLACEHOLDER implementation - NOT suitable for production");
+        warn!("See handle_starttls() documentation for full implementation requirements");
 
         Ok(())
     }

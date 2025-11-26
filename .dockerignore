@@ -1,0 +1,43 @@
+# =============================================================================
+# Docker Ignore
+# =============================================================================
+
+# Git
+.git
+.gitignore
+
+# Rust build artifacts
+target/
+**/*.rs.bk
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+
+# Documentation
+*.md
+docs/
+LICENSE
+
+# Test files
+test-*.py
+*.test.ts
+*.spec.ts
+
+# Node modules (web-ui has its own .dockerignore implicitly)
+web-ui/node_modules/
+web-ui/dist/
+
+# Temporary files
+*.log
+*.tmp
+/tmp/
+
+# Claude/AI
+.claude/

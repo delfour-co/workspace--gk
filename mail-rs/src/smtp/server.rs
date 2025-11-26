@@ -88,6 +88,9 @@ impl SmtpServer {
         // Log security features
         if self.tls_config.is_some() {
             info!("TLS/STARTTLS support enabled");
+            if self.config.smtp.require_tls {
+                info!("TLS is REQUIRED for all connections (enforced before MAIL FROM)");
+            }
         }
         if self.authenticator.is_some() {
             info!("SMTP AUTH support enabled (PLAIN, LOGIN)");
@@ -108,6 +111,7 @@ impl SmtpServer {
                         self.tls_config.clone(),
                         self.authenticator.clone(),
                         self.config.smtp.require_auth,
+                        self.config.smtp.require_tls,
                     );
 
                     tokio::spawn(async move {

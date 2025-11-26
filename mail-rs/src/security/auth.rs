@@ -71,7 +71,7 @@ impl AuthMechanism {
 
 /// SMTP authenticator
 pub struct Authenticator {
-    db: Arc<SqlitePool>,
+    pub db: Arc<SqlitePool>,
 }
 
 impl Authenticator {
@@ -232,7 +232,7 @@ impl Authenticator {
     }
 
     /// Hash password with Argon2
-    fn hash_password(&self, password: &str) -> Result<String> {
+    pub fn hash_password(&self, password: &str) -> Result<String> {
         let salt = SaltString::generate(&mut OsRng);
         let argon2 = Argon2::default();
 
@@ -288,6 +288,25 @@ impl Authenticator {
         .await?;
 
         Ok(users)
+    }
+
+    /// Health check - verify database connectivity
+    ///
+    /// Returns Ok(()) if database is accessible and responsive
+    pub async fn health_check(&self) -> Result<()> {
+        // Simple query to check database connectivity
+        sqlx::query("SELECT 1")
+            .execute(&*self.db)
+            .await?;
+
+        Ok(())
+    }
+
+    /// Verify login credentials (for IMAP)
+    ///
+    /// Simplified authentication method that doesn't require specifying mechanism
+    pub async fn verify_login(&self, username: &str, password: &str) -> Result<bool> {
+        self.authenticate(AuthMechanism::Plain, username, password).await
     }
 }
 

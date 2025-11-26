@@ -78,7 +78,9 @@ async fn main() -> anyhow::Result<()> {
     info!("🚀 Starting mcp-mail-server...");
 
     // Configuration
-    let smtp_server = std::env::var("SMTP_SERVER").unwrap_or_else(|_| "127.0.0.1:2525".to_string());
+    let smtp_host = std::env::var("SMTP_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let smtp_port = std::env::var("SMTP_PORT").unwrap_or_else(|_| "2525".to_string());
+    let smtp_server = format!("{}:{}", smtp_host, smtp_port);
 
     let state = Arc::new(AppState {
         smtp_server: smtp_server.clone(),
@@ -167,13 +169,13 @@ fn handle_tools_list(id: u64) -> Result<Json<McpResponse>, (StatusCode, String)>
         },
         Tool {
             name: "list_emails".to_string(),
-            description: "List recent emails from Maildir".to_string(),
+            description: "List recent emails from Maildir. Returns email metadata including 'email_id' field which is required to read the full email content with read_email tool.".to_string(),
             parameters: vec![
                 ToolParameter {
                     name: "email".to_string(),
-                    description: "Email address to list emails for".to_string(),
+                    description: "Email address to list emails for (optional - if omitted, lists all emails)".to_string(),
                     param_type: "string".to_string(),
-                    required: true,
+                    required: false,
                 },
                 ToolParameter {
                     name: "limit".to_string(),
@@ -186,17 +188,17 @@ fn handle_tools_list(id: u64) -> Result<Json<McpResponse>, (StatusCode, String)>
         },
         Tool {
             name: "read_email".to_string(),
-            description: "Read a specific email by ID".to_string(),
+            description: "Read the full content of a specific email. You MUST call list_emails first to get the email_id value for the email you want to read.".to_string(),
             parameters: vec![
                 ToolParameter {
                     name: "email".to_string(),
-                    description: "Email address".to_string(),
+                    description: "Email address (e.g. test@example.com)".to_string(),
                     param_type: "string".to_string(),
                     required: true,
                 },
                 ToolParameter {
                     name: "email_id".to_string(),
-                    description: "Email ID (filename)".to_string(),
+                    description: "Email ID from list_emails result (e.g. '1763735627.170438.fedora'). This is NOT the email subject - use the exact 'email_id' value returned by list_emails.".to_string(),
                     param_type: "string".to_string(),
                     required: true,
                 },
@@ -411,37 +413,100 @@ async fn list_emails_tool(
     use std::fs;
     use std::path::Path;
 
-    // Extract arguments
-    let email = arguments
+    // Extract arguments - email is now optional
+    let email_filter = arguments
         .get("email")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| (StatusCode::BAD_REQUEST, "Missing 'email' argument".to_string()))?;
+        .and_then(|v| v.as_str());
 
     let limit = arguments
         .get("limit")
         .and_then(|v| v.as_u64())
         .unwrap_or(10) as usize;
 
-    info!("📬 Listing emails for: {}", email);
-
-    // Read from Maildir
-    let maildir_path = format!("/tmp/maildir/{}/new", email);
-    let path = Path::new(&maildir_path);
-
-    if !path.exists() {
-        return Ok(Json(McpResponse {
-            jsonrpc: "2.0".to_string(),
-            result: Some(serde_json::json!({
-                "emails": [],
-                "count": 0,
-                "message": format!("No mailbox found for {}", email)
-            })),
-            error: None,
-            id,
-        }));
+    if let Some(email) = email_filter {
+        info!("📬 Listing emails for: {}", email);
+    } else {
+        info!("📬 Listing all emails across all mailboxes");
     }
 
+    let mut all_emails = Vec::new();
+
+    if let Some(email) = email_filter {
+        // List emails for specific address
+        let maildir_path = format!("/tmp/maildir/{}/new", email);
+        let path = Path::new(&maildir_path);
+
+        if !path.exists() {
+            return Ok(Json(McpResponse {
+                jsonrpc: "2.0".to_string(),
+                result: Some(serde_json::json!({
+                    "emails": [],
+                    "count": 0,
+                    "message": format!("No mailbox found for {}", email)
+                })),
+                error: None,
+                id,
+            }));
+        }
+
+        all_emails = read_maildir_emails(path, email, limit)?;
+    } else {
+        // List emails from ALL mailboxes
+        let maildir_root = Path::new("/tmp/maildir");
+
+        if maildir_root.exists() {
+            if let Ok(entries) = fs::read_dir(maildir_root) {
+                for entry in entries.filter_map(|e| e.ok()) {
+                    if !entry.path().is_dir() {
+                        continue;
+                    }
+
+                    let email_addr = entry.file_name().to_string_lossy().to_string();
+                    let new_path = entry.path().join("new");
+
+                    if new_path.exists() {
+                        if let Ok(mut emails) = read_maildir_emails(&new_path, &email_addr, usize::MAX) {
+                            all_emails.append(&mut emails);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Sort all emails by modification time (newest first)
+        all_emails.sort_by(|a, b| {
+            let a_date = a.get("date").and_then(|d| d.as_str()).unwrap_or("");
+            let b_date = b.get("date").and_then(|d| d.as_str()).unwrap_or("");
+            b_date.cmp(a_date)
+        });
+
+        // Apply limit
+        all_emails.truncate(limit);
+    }
+
+    info!("✅ Listed {} emails", all_emails.len());
+
+    Ok(Json(McpResponse {
+        jsonrpc: "2.0".to_string(),
+        result: Some(serde_json::json!({
+            "emails": all_emails,
+            "count": all_emails.len(),
+        })),
+        error: None,
+        id,
+    }))
+}
+
+/// Helper function to read emails from a maildir path
+fn read_maildir_emails(
+    path: &std::path::Path,
+    email_addr: &str,
+    limit: usize,
+) -> Result<Vec<serde_json::Value>, (StatusCode, String)> {
+    use std::fs;
+
     let mut emails = Vec::new();
+
     match fs::read_dir(path) {
         Ok(entries) => {
             let mut files: Vec<_> = entries
@@ -481,6 +546,7 @@ async fn list_emails_tool(
 
                     emails.push(serde_json::json!({
                         "id": filename,
+                        "to": email_addr,
                         "from": from,
                         "subject": subject,
                         "date": date,
@@ -489,21 +555,11 @@ async fn list_emails_tool(
             }
         }
         Err(e) => {
-            warn!("Failed to read maildir: {}", e);
+            warn!("Failed to read maildir {}: {}", path.display(), e);
         }
     }
 
-    info!("✅ Listed {} emails", emails.len());
-
-    Ok(Json(McpResponse {
-        jsonrpc: "2.0".to_string(),
-        result: Some(serde_json::json!({
-            "emails": emails,
-            "count": emails.len(),
-        })),
-        error: None,
-        id,
-    }))
+    Ok(emails)
 }
 
 /// Read email tool implementation

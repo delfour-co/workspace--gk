@@ -47,8 +47,10 @@
 //! - [`security`]: TLS and authentication
 //! - [`utils`]: Utility functions (validation, etc.)
 
+pub mod api;
 pub mod config;
 pub mod error;
+pub mod imap;
 pub mod security;
 pub mod smtp;
 pub mod storage;
