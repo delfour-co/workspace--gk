@@ -70,6 +70,7 @@ impl AuthMechanism {
 }
 
 /// SMTP authenticator
+#[derive(Clone)]
 pub struct Authenticator {
     pub db: Arc<SqlitePool>,
 }
@@ -134,64 +135,20 @@ impl Authenticator {
         Ok(())
     }
 
-    /// Authenticate a user
+    /// Authenticate a user with SMTP mechanism
     ///
     /// # Security
     /// - Constant-time comparison
     /// - Logs failed attempts
     /// - Rate limiting (future)
-    pub async fn authenticate(
+    pub async fn authenticate_smtp(
         &self,
         mechanism: AuthMechanism,
         username: &str,
         password: &str,
     ) -> Result<bool> {
         debug!("Authentication attempt for {} using {:?}", username, mechanism);
-
-        // Get user from database
-        let row = sqlx::query_as::<_, (String, String)>(
-            r#"
-            SELECT email, password_hash
-            FROM smtp_users
-            WHERE email = ?
-            "#,
-        )
-        .bind(username)
-        .fetch_optional(&*self.db)
-        .await?;
-
-        let Some((email, stored_hash)) = row else {
-            warn!("Authentication failed: user not found: {}", username);
-            return Ok(false);
-        };
-
-        // Verify password
-        let parsed_hash = PasswordHash::new(&stored_hash)
-            .map_err(|_e| MailError::AuthenticationFailed)?;
-
-        let argon2 = Argon2::default();
-        let verified = argon2.verify_password(password.as_bytes(), &parsed_hash).is_ok();
-
-        if verified {
-            info!("Authentication successful for {}", email);
-
-            // Update last login
-            sqlx::query(
-                r#"
-                UPDATE smtp_users
-                SET last_login = datetime('now')
-                WHERE email = ?
-                "#,
-            )
-            .bind(&email)
-            .execute(&*self.db)
-            .await?;
-
-            Ok(true)
-        } else {
-            warn!("Authentication failed: invalid password for {}", username);
-            Ok(false)
-        }
+        self.authenticate(username, password).await
     }
 
     /// Decode PLAIN authentication data
@@ -273,10 +230,27 @@ impl Authenticator {
         Ok(())
     }
 
-    /// List all users
+    /// List all users (for web interface)
+    ///
+    /// Returns a list of (rowid, email, created_at) tuples
+    pub async fn list_users(&self) -> Result<Vec<(i32, String, String)>> {
+        let users = sqlx::query_as::<_, (i32, String, String)>(
+            r#"
+            SELECT rowid, email, created_at
+            FROM smtp_users
+            ORDER BY created_at DESC
+            "#,
+        )
+        .fetch_all(&*self.db)
+        .await?;
+
+        Ok(users)
+    }
+
+    /// List all users with last login (for CLI)
     ///
     /// Returns a list of (email, created_at, last_login) tuples
-    pub async fn list_users(&self) -> Result<Vec<(String, String, Option<String>)>> {
+    pub async fn list_users_detailed(&self) -> Result<Vec<(String, String, Option<String>)>> {
         let users = sqlx::query_as::<_, (String, String, Option<String>)>(
             r#"
             SELECT email, created_at, last_login
@@ -288,6 +262,90 @@ impl Authenticator {
         .await?;
 
         Ok(users)
+    }
+
+    /// Count total users
+    pub async fn count_users(&self) -> Result<i64> {
+        let count: (i64,) = sqlx::query_as(
+            r#"
+            SELECT COUNT(*) FROM smtp_users
+            "#,
+        )
+        .fetch_one(&*self.db)
+        .await?;
+
+        Ok(count.0)
+    }
+
+    /// Create a new user (alias for add_user for consistency)
+    pub async fn create_user(&self, email: &str, password: &str) -> Result<()> {
+        self.add_user(email, password).await
+    }
+
+    /// Delete user by ID
+    pub async fn delete_user_by_id(&self, rowid: i32) -> Result<()> {
+        info!("Deleting user by ID: {}", rowid);
+
+        sqlx::query(
+            r#"
+            DELETE FROM smtp_users WHERE rowid = ?
+            "#,
+        )
+        .bind(rowid)
+        .execute(&*self.db)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Authenticate a user (simple version for web interface)
+    pub async fn authenticate(&self, username: &str, password: &str) -> Result<bool> {
+        debug!("Authentication attempt for {}", username);
+
+        // Get user from database
+        let row = sqlx::query_as::<_, (String, String)>(
+            r#"
+            SELECT email, password_hash
+            FROM smtp_users
+            WHERE email = ?
+            "#,
+        )
+        .bind(username)
+        .fetch_optional(&*self.db)
+        .await?;
+
+        let Some((email, stored_hash)) = row else {
+            warn!("Authentication failed: user not found: {}", username);
+            return Ok(false);
+        };
+
+        // Verify password
+        let parsed_hash = PasswordHash::new(&stored_hash)
+            .map_err(|_e| MailError::AuthenticationFailed)?;
+
+        let argon2 = Argon2::default();
+        let verified = argon2.verify_password(password.as_bytes(), &parsed_hash).is_ok();
+
+        if verified {
+            info!("Authentication successful for {}", email);
+
+            // Update last login
+            sqlx::query(
+                r#"
+                UPDATE smtp_users
+                SET last_login = datetime('now')
+                WHERE email = ?
+                "#,
+            )
+            .bind(&email)
+            .execute(&*self.db)
+            .await?;
+
+            Ok(true)
+        } else {
+            warn!("Authentication failed: invalid password for {}", username);
+            Ok(false)
+        }
     }
 
     /// Health check - verify database connectivity
@@ -306,7 +364,7 @@ impl Authenticator {
     ///
     /// Simplified authentication method that doesn't require specifying mechanism
     pub async fn verify_login(&self, username: &str, password: &str) -> Result<bool> {
-        self.authenticate(AuthMechanism::Plain, username, password).await
+        self.authenticate(username, password).await
     }
 }
 
@@ -325,14 +383,14 @@ mod tests {
 
         // Authenticate with correct password
         let result = auth
-            .authenticate(AuthMechanism::Plain, "test@example.com", "password123")
+            .authenticate("test@example.com", "password123")
             .await
             .unwrap();
         assert!(result);
 
         // Authenticate with wrong password
         let result = auth
-            .authenticate(AuthMechanism::Plain, "test@example.com", "wrong")
+            .authenticate("test@example.com", "wrong")
             .await
             .unwrap();
         assert!(!result);

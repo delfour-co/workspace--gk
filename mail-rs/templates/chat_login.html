@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Chat - GK Mail{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-purple-50 to-blue-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+    <div class="max-w-md w-full">
+        <!-- Logo/Title -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+                💬 GK Assistant
+            </h1>
+            <p class="text-gray-600 dark:text-gray-400">
+                Your AI-powered mail assistant
+            </p>
+        </div>
+
+        <!-- Login Form -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8">
+            {% if !error.is_empty() %}
+            <div class="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <form hx-post="/chat/login" hx-target="body" hx-swap="outerHTML" class="space-y-6">
+                <!-- Email Field -->
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Email Address
+                    </label>
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        required
+                        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        placeholder="user@delfour.co"
+                    >
+                </div>
+
+                <!-- Password Field -->
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Password
+                    </label>
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        required
+                        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        placeholder="••••••••"
+                    >
+                </div>
+
+                <!-- Submit Button -->
+                <button
+                    type="submit"
+                    class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors shadow-lg hover:shadow-xl"
+                >
+                    Start Chatting
+                </button>
+            </form>
+
+            <!-- Demo Info -->
+            <div class="mt-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                <p class="text-sm text-gray-600 dark:text-gray-400 text-center">
+                    Demo: test@delfour.co / TestPass123
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

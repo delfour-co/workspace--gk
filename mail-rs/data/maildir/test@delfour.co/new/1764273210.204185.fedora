@@ -1,0 +1,15 @@
+From: Admin <admin@delfour.co>
+To: Test User <test@delfour.co>
+Subject: Email de bienvenue
+Date: $(date -R)
+
+Bonjour,
+
+Ceci est ton premier email de test !
+
+Tu peux maintenant utiliser l'interface de chat pour :
+- Lister tes emails
+- Lire leur contenu
+- Envoyer de nouveaux messages
+
+Bonne découverte !

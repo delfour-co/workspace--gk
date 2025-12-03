@@ -1,7 +1,10 @@
 use super::types::{AuthenticationStatus, DkimAuthResult};
 use anyhow::{anyhow, Result};
-use mail_auth::dkim::{Dkim, DkimResult as MailAuthDkimResult, HashAlgorithm, Signature};
-use mail_auth::Resolver;
+use mail_auth::common::crypto::{RsaKey, Sha256};
+use mail_auth::common::headers::HeaderWriter;
+use mail_auth::common::verify::VerifySignature;
+use mail_auth::{AuthenticatedMessage, DkimResult as MailAuthDkimResult, Resolver};
+use mail_auth::dkim::DkimSigner as MailAuthDkimSigner;
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
@@ -52,19 +55,22 @@ impl DkimSigner {
             self.domain, self.selector
         );
 
-        // Create DKIM signature
-        let signature = Signature::new()
+        // Load RSA key from PEM
+        let private_key_str = String::from_utf8(self.private_key.clone())?;
+        let rsa_key = RsaKey::<Sha256>::from_rsa_pem(&private_key_str)
+            .map_err(|e| anyhow!("Failed to load RSA key: {}", e))?;
+
+        // Create DKIM signature using mail-auth
+        let signature = MailAuthDkimSigner::from_key(rsa_key)
             .domain(&self.domain)
             .selector(&self.selector)
-            .headers(&["From", "To", "Subject", "Date", "Message-ID"])
-            .canonicalization_relaxed()
-            .hash_algo(HashAlgorithm::Sha256)
-            .sign(&self.private_key, message)
+            .headers(["From", "To", "Subject", "Date", "Message-ID"])
+            .sign(message)
             .map_err(|e| anyhow!("DKIM signing failed: {}", e))?;
 
         debug!("DKIM signature generated successfully");
 
-        Ok(signature.to_string())
+        Ok(signature.to_header())
     }
 
     /// Add DKIM signature to email headers
@@ -127,68 +133,97 @@ impl DkimValidator {
     pub async fn validate(&self, message: &[u8]) -> DkimResult {
         info!("Validating DKIM signature(s) in email");
 
-        // Parse and verify DKIM signatures using mail-auth
-        let dkim_result = Dkim::verify(message, &self.resolver).await;
+        // Parse the authenticated message
+        let parsed_message = match AuthenticatedMessage::parse(message) {
+            Some(msg) => msg,
+            None => {
+                warn!("Failed to parse message for DKIM validation");
+                return Ok(DkimAuthResult {
+                    status: AuthenticationStatus::PermError,
+                    domain: String::new(),
+                    selector: String::new(),
+                    reason: Some("Failed to parse message".to_string()),
+                });
+            }
+        };
+
+        // Verify DKIM signatures
+        let dkim_results = self.resolver.verify_dkim(&parsed_message).await;
+
+        debug!("DKIM verification returned {} results", dkim_results.len());
+
+        // If no signatures found
+        if dkim_results.is_empty() {
+            debug!("No DKIM signature found");
+            return Ok(DkimAuthResult {
+                status: AuthenticationStatus::None,
+                domain: String::new(),
+                selector: String::new(),
+                reason: Some("No DKIM signature present".to_string()),
+            });
+        }
+
+        // Get the first result (emails can have multiple signatures)
+        // In a real implementation, you'd want to check if ANY signature passes
+        let first_result = &dkim_results[0];
+        let dkim_result = first_result.result();
 
         debug!("DKIM verification result: {:?}", dkim_result);
 
-        // Extract first signature result (emails can have multiple signatures)
-        let (status, domain, selector, reason) = match dkim_result {
+        // Convert mail-auth result to our AuthenticationStatus
+        let (status, reason) = match dkim_result {
             MailAuthDkimResult::Pass => {
                 info!("DKIM validation passed");
                 (
                     AuthenticationStatus::Pass,
-                    self.extract_domain_from_message(message),
-                    "unknown".to_string(),
                     Some("DKIM signature valid".to_string()),
                 )
             }
-            MailAuthDkimResult::Fail(_) => {
-                warn!("DKIM validation failed");
+            MailAuthDkimResult::Fail(err) => {
+                warn!("DKIM validation failed: {:?}", err);
                 (
                     AuthenticationStatus::Fail,
-                    self.extract_domain_from_message(message),
-                    "unknown".to_string(),
-                    Some("DKIM signature invalid".to_string()),
+                    Some(format!("DKIM signature invalid: {:?}", err)),
                 )
             }
-            MailAuthDkimResult::Neutral(_) => {
-                info!("DKIM validation neutral");
+            MailAuthDkimResult::Neutral(err) => {
+                info!("DKIM validation neutral: {:?}", err);
                 (
                     AuthenticationStatus::Neutral,
-                    self.extract_domain_from_message(message),
-                    "unknown".to_string(),
-                    Some("DKIM signature validation inconclusive".to_string()),
+                    Some(format!("DKIM signature validation inconclusive: {:?}", err)),
                 )
             }
-            MailAuthDkimResult::TempError(_) => {
-                warn!("DKIM temporary error");
+            MailAuthDkimResult::TempError(err) => {
+                warn!("DKIM temporary error: {:?}", err);
                 (
                     AuthenticationStatus::TempError,
-                    self.extract_domain_from_message(message),
-                    "unknown".to_string(),
-                    Some("Temporary error during DKIM validation".to_string()),
+                    Some(format!("Temporary error during DKIM validation: {:?}", err)),
                 )
             }
-            MailAuthDkimResult::PermError(_) => {
-                warn!("DKIM permanent error");
+            MailAuthDkimResult::PermError(err) => {
+                warn!("DKIM permanent error: {:?}", err);
                 (
                     AuthenticationStatus::PermError,
-                    self.extract_domain_from_message(message),
-                    "unknown".to_string(),
-                    Some("Permanent error in DKIM signature".to_string()),
+                    Some(format!("Permanent error in DKIM signature: {:?}", err)),
                 )
             }
             MailAuthDkimResult::None => {
-                debug!("No DKIM signature found");
+                debug!("No DKIM signature in result");
                 (
                     AuthenticationStatus::None,
-                    String::new(),
-                    String::new(),
                     Some("No DKIM signature present".to_string()),
                 )
             }
         };
+
+        // Extract domain from the signature (if available)
+        let domain = first_result.signature()
+            .map(|sig| sig.domain().to_string())
+            .unwrap_or_else(|| self.extract_domain_from_message(message));
+
+        let selector = first_result.signature()
+            .map(|sig| sig.selector().to_string())
+            .unwrap_or_else(|| "unknown".to_string());
 
         Ok(DkimAuthResult {
             status,

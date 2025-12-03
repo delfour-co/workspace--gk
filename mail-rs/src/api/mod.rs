@@ -7,6 +7,7 @@ pub mod auth;
 pub mod handlers;
 pub mod metrics;
 pub mod server;
+pub mod web;
 
 pub use metrics::Metrics;
 pub use server::ApiServer;

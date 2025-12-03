@@ -36,6 +36,19 @@ enum ServerMessage {
     #[serde(rename = "auth_success")]
     AuthSuccess { email: String },
 
+    #[serde(rename = "email_summaries")]
+    EmailSummaries {
+        count: usize,
+        summaries: Vec<EmailSummaryInfo>,
+    },
+
+    #[serde(rename = "new_email_notification")]
+    NewEmailNotification {
+        from: String,
+        subject: String,
+        summary: String,
+    },
+
     #[serde(rename = "chunk")]
     Chunk { content: String },
 
@@ -58,6 +71,13 @@ enum ServerMessage {
     Error { message: String },
 }
 
+#[derive(Debug, Serialize)]
+struct EmailSummaryInfo {
+    from: String,
+    subject: String,
+    summary: String,
+}
+
 /// WebSocket upgrade handler
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
@@ -72,9 +92,16 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
 
     let (mut sender, mut receiver) = socket.split();
     let mut authenticated_email: Option<String> = None;
+    let mut conversation_history: Vec<Message> = Vec::new();
 
-    // Handle incoming messages
-    while let Some(Ok(msg)) = receiver.next().await {
+    // Subscribe to email notifications
+    let mut notification_rx = state.email_notifier.subscribe();
+
+    // Handle incoming messages and notifications
+    loop {
+        tokio::select! {
+            // Handle WebSocket messages from client
+            Some(Ok(msg)) = receiver.next() => {
         if let WsMessage::Text(text) = msg {
             debug!("📥 Received message: {}", text);
 
@@ -103,9 +130,53 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                         authenticated_email = Some(email.clone());
                         info!("✅ User authenticated: {}", email);
 
-                        let auth_msg = ServerMessage::AuthSuccess { email };
+                        // Send auth success
+                        let auth_msg = ServerMessage::AuthSuccess {
+                            email: email.clone(),
+                        };
                         if let Ok(json) = serde_json::to_string(&auth_msg) {
                             let _ = sender.send(WsMessage::Text(json)).await;
+                        }
+
+                        // Load and send unread email summaries
+                        match state.summary_store.get_unread_summaries(&email).await {
+                            Ok(summaries) => {
+                                if !summaries.is_empty() {
+                                    info!(
+                                        "📬 Sending {} unread email summaries to {}",
+                                        summaries.len(),
+                                        email
+                                    );
+
+                                    let summary_infos: Vec<EmailSummaryInfo> = summaries
+                                        .iter()
+                                        .map(|s| EmailSummaryInfo {
+                                            from: s.from_addr.clone(),
+                                            subject: s.subject.clone(),
+                                            summary: s.summary.clone(),
+                                        })
+                                        .collect();
+
+                                    let summaries_msg = ServerMessage::EmailSummaries {
+                                        count: summary_infos.len(),
+                                        summaries: summary_infos,
+                                    };
+
+                                    if let Ok(json) = serde_json::to_string(&summaries_msg) {
+                                        let _ = sender.send(WsMessage::Text(json)).await;
+                                    }
+
+                                    // Mark all summaries as read after sending
+                                    if let Err(e) = state.summary_store.mark_all_as_read(&email).await {
+                                        warn!("⚠️  Failed to mark summaries as read: {}", e);
+                                    } else {
+                                        info!("✅ Marked all summaries as read for {}", email);
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                warn!("⚠️  Failed to load summaries: {}", e);
+                            }
                         }
                     } else {
                         let error_msg = ServerMessage::Error {
@@ -124,7 +195,8 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                             message,
                             user_email.clone(),
                             &mut sender,
-                            &state
+                            &state,
+                            &mut conversation_history
                         ).await {
                             error!("Error handling chat: {}", e);
                             let error_msg = ServerMessage::Error {
@@ -148,6 +220,32 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
             info!("🔌 WebSocket closed by client");
             break;
         }
+            },
+            // Handle email notifications from broadcast channel
+            Ok(notification) = notification_rx.recv() => {
+                // Only send notification if it's for the authenticated user
+                if let Some(ref user_email) = authenticated_email {
+                    if &notification.user_email == user_email {
+                        info!("📬 Sending new email notification to {}", user_email);
+
+                        let notification_msg = ServerMessage::NewEmailNotification {
+                            from: notification.summary.from_addr,
+                            subject: notification.summary.subject,
+                            summary: notification.summary.summary,
+                        };
+
+                        if let Ok(json) = serde_json::to_string(&notification_msg) {
+                            let _ = sender.send(WsMessage::Text(json)).await;
+                        }
+                    }
+                }
+            },
+            // Handle disconnection
+            else => {
+                info!("🔌 WebSocket connection ended");
+                break;
+            }
+        }
     }
 
     info!("🔌 WebSocket connection closed");
@@ -159,35 +257,46 @@ async fn handle_chat_message(
     user_email: String,
     sender: &mut futures::stream::SplitSink<WebSocket, WsMessage>,
     state: &Arc<AppState>,
+    conversation_history: &mut Vec<Message>,
 ) -> anyhow::Result<()> {
     info!("💬 Processing chat message from {}: {}", user_email, user_message);
 
-    // Create LLM messages with system context
-    let messages = vec![
-        Message {
+    // Add system prompt if conversation is empty
+    if conversation_history.is_empty() {
+        conversation_history.push(Message {
             role: MessageRole::System,
             content: format!(
-                "You are an AI email assistant for user: {}.\n\n\
-                IMPORTANT - How to read emails:\n\
-                1. First call list_emails to see available emails\n\
-                2. The list_emails result includes an 'email_id' field for each email (e.g. '1763735627.170438.fedora')\n\
-                3. To read an email, call read_email with BOTH parameters:\n\
+                "Tu es un assistant email intelligent en français pour l'utilisateur: {}.\n\n\
+                IMPORTANT - Comment lire les emails:\n\
+                1. Appelle list_emails pour voir les emails disponibles\n\
+                2. Le résultat contient un champ 'id' pour chaque email (ex: '1763735627.170438.fedora')\n\
+                3. Pour lire un email, appelle read_email avec LES DEUX paramètres:\n\
                    - email: '{}'\n\
-                   - email_id: the exact 'email_id' value from list_emails (NOT the subject!)\n\n\
-                Example workflow:\n\
-                User: \"Read the E2E Test Email\"\n\
-                Step 1: Call list_emails with email='{}'\n\
-                Result: [{{'email_id': '1763735627.170438.fedora', 'subject': 'E2E Test Email - 2025-11-21 15:33:47', ...}}]\n\
-                Step 2: Call read_email with email='{}' and email_id='1763735627.170438.fedora'\n\n\
-                Remember: email_id is the file identifier, NOT the subject line!",
+                   - email_id: la valeur exacte du champ 'id' de list_emails (PAS le sujet!)\n\n\
+                IMPORTANT - Mémoire de conversation:\n\
+                - Tu te souviens des emails listés précédemment\n\
+                - Quand l'utilisateur dit \"le premier\", \"le deuxième\", utilise l'id du dernier list_emails\n\
+                - Garde en mémoire les résultats des outils pour répondre aux questions suivantes\n\n\
+                Exemple:\n\
+                User: \"Ai-je de nouveaux emails?\"\n\
+                → Appelle list_emails(email='{}')\n\
+                Résultat: [{{id: '123.456.fedora', subject: 'Test', from: 'alice@example.com'}}]\n\
+                User: \"Lis le premier\"\n\
+                → Appelle read_email(email='{}', email_id='123.456.fedora')\n\n\
+                Réponds TOUJOURS en français de façon naturelle et conversationnelle.",
                 user_email, user_email, user_email, user_email
             ),
-        },
-        Message {
-            role: MessageRole::User,
-            content: user_message.clone(),
-        },
-    ];
+        });
+    }
+
+    // Add user message to history
+    conversation_history.push(Message {
+        role: MessageRole::User,
+        content: user_message.clone(),
+    });
+
+    // Create messages for LLM (full history)
+    let messages = conversation_history.clone();
 
     // Get tools from MCP registry
     let registry = state.mcp_registry.lock().await;
@@ -249,41 +358,24 @@ async fn handle_chat_message(
         // Second LLM call with tool results to generate natural language response
         info!("🤖 Calling LLM again to generate natural language response");
 
-        // Format tool results as a message
+        // Format tool results as a message and add to history
         let tool_results_text = tool_results
             .iter()
             .map(|(name, result)| {
-                format!("Tool '{}' returned: {}", name, serde_json::to_string_pretty(result).unwrap_or_default())
+                format!("Outil '{}' a retourné: {}", name, serde_json::to_string_pretty(result).unwrap_or_default())
             })
             .collect::<Vec<_>>()
             .join("\n\n");
 
-        let messages_with_results = vec![
-            Message {
-                role: MessageRole::System,
-                content: format!(
-                    "You are an AI email assistant for user: {}. \
-                    Answer the user's question in French using the tool results provided. \
-                    Be concise and natural. Format the response in a user-friendly way. \
-                    If the user asked to read an email and you received the full content, \
-                    present the key information (sender, subject, date, body) in a clear format.",
-                    user_email
-                ),
-            },
-            Message {
-                role: MessageRole::User,
-                content: user_message.clone(),
-            },
-            Message {
-                role: MessageRole::Tool,
-                content: tool_results_text,
-            },
-        ];
+        conversation_history.push(Message {
+            role: MessageRole::Tool,
+            content: tool_results_text,
+        });
 
-        // Call LLM again to generate final response
+        // Call LLM again with full history including tool results
         let final_llm_response = state
             .llm
-            .generate(messages_with_results, None)
+            .generate(conversation_history.clone(), None)
             .await?;
 
         final_llm_response.text
@@ -292,9 +384,43 @@ async fn handle_chat_message(
         llm_response.text
     };
 
-    // Send done message
+    // Add assistant response to history
+    conversation_history.push(Message {
+        role: MessageRole::Assistant,
+        content: final_response.clone(),
+    });
+
+    // Stream response word by word for better UX
+    let words: Vec<&str> = final_response.split_whitespace().collect();
+    let mut current_chunk = String::new();
+
+    for (i, word) in words.iter().enumerate() {
+        current_chunk.push_str(word);
+
+        // Add space after each word except the last
+        if i < words.len() - 1 {
+            current_chunk.push(' ');
+        }
+
+        // Send chunk every 3-5 words or on last word
+        if current_chunk.split_whitespace().count() >= 4 || i == words.len() - 1 {
+            let chunk_msg = ServerMessage::Chunk {
+                content: current_chunk.clone(),
+            };
+            if let Ok(json) = serde_json::to_string(&chunk_msg) {
+                let _ = sender.send(WsMessage::Text(json)).await;
+            }
+
+            // Small delay for streaming effect (20ms)
+            tokio::time::sleep(tokio::time::Duration::from_millis(20)).await;
+
+            current_chunk.clear();
+        }
+    }
+
+    // Send done message (empty content since we already streamed everything)
     let done_msg = ServerMessage::Done {
-        content: final_response,
+        content: String::new(),
     };
     let json = serde_json::to_string(&done_msg)?;
     sender.send(WsMessage::Text(json)).await?;

@@ -1,3 +1,4 @@
+use mail_rs::api::ApiServer;
 use mail_rs::config::Config;
 use mail_rs::imap::ImapServer;
 use mail_rs::smtp::SmtpServer;
@@ -62,7 +63,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         imap_server.start().await
     });
 
-    // Wait for either server to exit (or error)
+    // Start API server in a separate task
+    let api_config = Arc::clone(&config);
+    let api_handle = tokio::spawn(async move {
+        // Create authenticator for API
+        let authenticator = match mail_rs::security::Authenticator::new(&api_config.smtp.auth_database_url.as_ref().unwrap_or(&"sqlite://data/users.db".to_string())).await {
+            Ok(auth) => auth,
+            Err(e) => {
+                error!("Failed to create authenticator for API: {}", e);
+                return Err(e);
+            }
+        };
+
+        info!("Starting API server on 0.0.0.0:8080...");
+        let api_server = ApiServer::new(
+            authenticator,
+            "dev-secret-key-change-in-production".to_string(),
+            api_config.storage.maildir_path.clone(),
+            "0.0.0.0:8080".to_string(),
+        );
+
+        api_server.run().await.map_err(Into::into)
+    });
+
+    // Wait for any server to exit (or error)
     tokio::select! {
         result = smtp_handle => {
             match result {
@@ -76,6 +100,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Ok(Ok(())) => info!("IMAP server exited successfully"),
                 Ok(Err(e)) => error!("IMAP server error: {}", e),
                 Err(e) => error!("IMAP task panic: {}", e),
+            }
+        }
+        result = api_handle => {
+            match result {
+                Ok(Ok(())) => info!("API server exited successfully"),
+                Ok(Err(e)) => error!("API server error: {}", e),
+                Err(e) => error!("API task panic: {}", e),
             }
         }
     }

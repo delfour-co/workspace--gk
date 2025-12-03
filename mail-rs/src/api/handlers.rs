@@ -86,7 +86,7 @@ pub async fn login(
     Json(req): Json<LoginRequest>,
 ) -> impl IntoResponse {
     // Verify credentials using PLAIN mechanism (email as username)
-    match state.authenticator.authenticate(AuthMechanism::Plain, &req.email, &req.password).await {
+    match state.authenticator.authenticate(&req.email, &req.password).await {
         Ok(true) => {
             // Generate JWT token
             match state.jwt_config.create_token(&req.email) {

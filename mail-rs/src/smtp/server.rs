@@ -112,6 +112,7 @@ impl SmtpServer {
                         self.authenticator.clone(),
                         self.config.smtp.require_auth,
                         self.config.smtp.require_tls,
+                        self.config.authentication.clone(),
                     );
 
                     tokio::spawn(async move {

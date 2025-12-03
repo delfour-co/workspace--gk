@@ -1,8 +1,11 @@
+use crate::authentication::{DkimValidator, SpfValidator};
+use crate::config::AuthenticationConfig;
 use crate::error::{MailError, Result};
 use crate::security::{AuthMechanism, Authenticator, TlsConfig};
 use crate::smtp::commands::SmtpCommand;
 use crate::storage::MaildirStorage;
 use crate::utils::validate_email;
+use std::net::IpAddr;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
@@ -131,10 +134,35 @@ pub struct SmtpSession {
     authenticated_user: Option<String>,
     require_auth: bool,
     require_tls: bool,
+    // Authentication (SPF/DKIM)
+    auth_config: AuthenticationConfig,
+    spf_validator: Option<Arc<SpfValidator>>,
+    dkim_validator: Option<Arc<DkimValidator>>,
+    client_ip: Option<IpAddr>,
+    helo_domain: Option<String>,
 }
 
 impl SmtpSession {
-    pub fn new(hostname: String, storage: Arc<MaildirStorage>, max_message_size: usize) -> Self {
+    pub fn new(
+        hostname: String,
+        storage: Arc<MaildirStorage>,
+        max_message_size: usize,
+        auth_config: AuthenticationConfig,
+    ) -> Self {
+        // Initialize SPF validator if enabled
+        let spf_validator = if auth_config.spf_enabled {
+            Some(Arc::new(SpfValidator::new()))
+        } else {
+            None
+        };
+
+        // Initialize DKIM validator if enabled
+        let dkim_validator = if auth_config.dkim_validate_incoming {
+            Some(Arc::new(DkimValidator::new()))
+        } else {
+            None
+        };
+
         Self {
             state: SmtpState::Fresh,
             from: None,
@@ -150,6 +178,11 @@ impl SmtpSession {
             authenticated_user: None,
             require_auth: false,
             require_tls: false,
+            auth_config,
+            spf_validator,
+            dkim_validator,
+            client_ip: None,
+            helo_domain: None,
         }
     }
 
@@ -162,7 +195,22 @@ impl SmtpSession {
         authenticator: Option<Arc<Authenticator>>,
         require_auth: bool,
         require_tls: bool,
+        auth_config: AuthenticationConfig,
     ) -> Self {
+        // Initialize SPF validator if enabled
+        let spf_validator = if auth_config.spf_enabled {
+            Some(Arc::new(SpfValidator::new()))
+        } else {
+            None
+        };
+
+        // Initialize DKIM validator if enabled
+        let dkim_validator = if auth_config.dkim_validate_incoming {
+            Some(Arc::new(DkimValidator::new()))
+        } else {
+            None
+        };
+
         Self {
             state: SmtpState::Fresh,
             from: None,
@@ -178,11 +226,22 @@ impl SmtpSession {
             authenticated_user: None,
             require_auth,
             require_tls,
+            auth_config,
+            spf_validator,
+            dkim_validator,
+            client_ip: None,
+            helo_domain: None,
         }
     }
 
     /// Handle SMTP session with comprehensive security checks and STARTTLS support
     pub async fn handle(mut self, stream: TcpStream) -> Result<()> {
+        // Capture client IP for SPF validation
+        if let Ok(peer_addr) = stream.peer_addr() {
+            self.client_ip = Some(peer_addr.ip());
+            debug!("Client IP: {}", peer_addr.ip());
+        }
+
         // Wrap in unified stream type (starts as plain)
         let mut smtp_stream = SmtpStream::Plain(stream);
 
@@ -339,11 +398,13 @@ impl SmtpSession {
         match (&self.state, cmd) {
             (SmtpState::Fresh, SmtpCommand::Helo(domain)) => {
                 info!("HELO from {}", domain);
+                self.helo_domain = Some(domain.clone());
                 self.state = SmtpState::Greeted;
                 Ok(format!("250 {} Hello {}\r\n", self.hostname, domain))
             }
             (SmtpState::Fresh, SmtpCommand::Ehlo(domain)) => {
                 info!("EHLO from {}", domain);
+                self.helo_domain = Some(domain.clone());
                 self.state = SmtpState::Greeted;
 
                 // Build EHLO response with capabilities
@@ -520,6 +581,24 @@ impl SmtpSession {
             return Err(MailError::SmtpProtocol("Empty message".to_string()));
         }
 
+        // Perform SPF/DKIM validation
+        let auth_result = self.validate_authentication().await;
+
+        // Check if we should reject based on authentication
+        if let Some(ref result) = auth_result {
+            if self.should_reject_message(result) {
+                warn!("Rejecting message due to failed authentication");
+                return Err(MailError::SmtpProtocol(
+                    "Message rejected due to authentication failure".to_string(),
+                ));
+            }
+        }
+
+        // Prepend Authentication-Results header if we performed validation
+        if let Some(result) = auth_result {
+            self.prepend_auth_header(&result);
+        }
+
         // Store the email
         self.store_email().await?;
 
@@ -539,12 +618,77 @@ impl SmtpSession {
         if let Some(from) = &self.from {
             for recipient in &self.to {
                 info!("Storing email from {} to {}", from, recipient);
-                self.storage.store(recipient, &self.data).await?;
+                let email_id = self.storage.store(recipient, &self.data).await?;
+
+                // Trigger summary generation asynchronously (fire-and-forget)
+                self.trigger_summary_generation(recipient, &email_id, from).await;
             }
             Ok(())
         } else {
             Err(MailError::SmtpProtocol("No sender specified".to_string()))
         }
+    }
+
+    /// Trigger AI summary generation in background
+    async fn trigger_summary_generation(&self, user_email: &str, email_id: &str, from: &str) {
+        // Parse email to extract subject and body
+        let email_data = String::from_utf8_lossy(&self.data);
+        let mut subject = String::from("(no subject)");
+        let mut body = String::new();
+        let mut in_body = false;
+
+        for line in email_data.lines() {
+            if line.starts_with("Subject:") {
+                subject = line.trim_start_matches("Subject:").trim().to_string();
+            } else if in_body {
+                body.push_str(line);
+                body.push('\n');
+            } else if line.is_empty() {
+                in_body = true;
+            }
+        }
+
+        // Limit body size for summary
+        if body.len() > 1000 {
+            body.truncate(1000);
+            body.push_str("...");
+        }
+
+        // Call ai-runtime asynchronously (fire-and-forget)
+        let ai_url = std::env::var("AI_RUNTIME_URL")
+            .unwrap_or_else(|_| "http://127.0.0.1:8888".to_string());
+        let user_email = user_email.to_string();
+        let email_id = email_id.to_string();
+        let from = from.to_string();
+
+        tokio::spawn(async move {
+            let client = reqwest::Client::new();
+            let payload = serde_json::json!({
+                "user_email": user_email,
+                "email_id": email_id,
+                "from": from,
+                "subject": subject,
+                "body": body
+            });
+
+            match client
+                .post(format!("{}/api/generate-summary", ai_url))
+                .json(&payload)
+                .send()
+                .await
+            {
+                Ok(response) => {
+                    if response.status().is_success() {
+                        info!("✅ Summary generation triggered for {}", user_email);
+                    } else {
+                        warn!("⚠️  Summary generation failed: {}", response.status());
+                    }
+                }
+                Err(e) => {
+                    warn!("⚠️  Failed to call ai-runtime: {}", e);
+                }
+            }
+        });
     }
 
     /// Handle STARTTLS command and perform TLS upgrade
@@ -714,7 +858,7 @@ impl SmtpSession {
 
                 // Authenticate
                 let success = authenticator
-                    .authenticate(AuthMechanism::Plain, &username, &password)
+                    .authenticate_smtp(AuthMechanism::Plain, &username, &password)
                     .await?;
 
                 if success {
@@ -751,7 +895,7 @@ impl SmtpSession {
 
                 // Authenticate
                 let success = authenticator
-                    .authenticate(AuthMechanism::Login, &username, &password)
+                    .authenticate_smtp(AuthMechanism::Login, &username, &password)
                     .await?;
 
                 if success {
@@ -767,5 +911,121 @@ impl SmtpSession {
         }
 
         Ok(())
+    }
+
+    /// Validate SPF and DKIM for incoming message
+    async fn validate_authentication(&self) -> Option<crate::authentication::types::AuthenticationResults> {
+        use crate::authentication::types::{AuthenticationResults, AuthenticationStatus, DkimAuthResult, SpfAuthResult};
+
+        // Only validate if we have validators enabled
+        if self.spf_validator.is_none() && self.dkim_validator.is_none() {
+            return None;
+        }
+
+        // Perform SPF validation
+        let spf_result = if let Some(ref validator) = self.spf_validator {
+            if let (Some(client_ip), Some(ref from), Some(ref helo)) =
+                (self.client_ip, &self.from, &self.helo_domain) {
+                info!("Performing SPF validation for {} from {}", from, client_ip);
+                match validator.validate(client_ip, from, helo).await {
+                    Ok(result) => {
+                        info!("SPF validation result: {:?}", result.status);
+                        result
+                    }
+                    Err(e) => {
+                        warn!("SPF validation error: {}", e);
+                        SpfAuthResult {
+                            status: AuthenticationStatus::TempError,
+                            client_ip: client_ip.to_string(),
+                            envelope_from: from.clone(),
+                            reason: Some(format!("SPF validation error: {}", e)),
+                        }
+                    }
+                }
+            } else {
+                warn!("Missing data for SPF validation");
+                SpfAuthResult {
+                    status: AuthenticationStatus::None,
+                    client_ip: self.client_ip.map(|ip| ip.to_string()).unwrap_or_default(),
+                    envelope_from: self.from.clone().unwrap_or_default(),
+                    reason: Some("Missing client IP, envelope from, or HELO domain".to_string()),
+                }
+            }
+        } else {
+            SpfAuthResult {
+                status: AuthenticationStatus::None,
+                client_ip: String::new(),
+                envelope_from: String::new(),
+                reason: Some("SPF validation disabled".to_string()),
+            }
+        };
+
+        // Perform DKIM validation
+        let dkim_result = if let Some(ref validator) = self.dkim_validator {
+            info!("Performing DKIM validation");
+            match validator.validate(&self.data).await {
+                Ok(result) => {
+                    info!("DKIM validation result: {:?}", result.status);
+                    result
+                }
+                Err(e) => {
+                    warn!("DKIM validation error: {}", e);
+                    DkimAuthResult {
+                        status: AuthenticationStatus::TempError,
+                        domain: String::new(),
+                        selector: String::new(),
+                        reason: Some(format!("DKIM validation error: {}", e)),
+                    }
+                }
+            }
+        } else {
+            DkimAuthResult {
+                status: AuthenticationStatus::None,
+                domain: String::new(),
+                selector: String::new(),
+                reason: Some("DKIM validation disabled".to_string()),
+            }
+        };
+
+        // Generate summary
+        let summary = format!(
+            "spf={:?} dkim={:?}",
+            spf_result.status,
+            dkim_result.status
+        );
+
+        Some(AuthenticationResults {
+            spf: spf_result,
+            dkim: dkim_result,
+            summary,
+        })
+    }
+
+    /// Determine if message should be rejected based on authentication results
+    fn should_reject_message(&self, result: &crate::authentication::types::AuthenticationResults) -> bool {
+        use crate::authentication::types::AuthenticationStatus;
+
+        // Reject if SPF fails and rejection is enabled
+        if self.auth_config.spf_reject_on_fail
+            && matches!(result.spf.status, AuthenticationStatus::Fail) {
+            return true;
+        }
+
+        // Don't reject for other reasons (TempError, SoftFail, etc.)
+        false
+    }
+
+    /// Prepend Authentication-Results header to message
+    fn prepend_auth_header(&mut self, result: &crate::authentication::types::AuthenticationResults) {
+        let header = result.to_header(&self.hostname);
+        let header_bytes = format!("Authentication-Results: {}\r\n", header);
+
+        // Prepend header to message data
+        let mut new_data = Vec::new();
+        new_data.extend_from_slice(header_bytes.as_bytes());
+        new_data.extend_from_slice(&self.data);
+        self.data = new_data;
+
+        info!("Added Authentication-Results header");
     }
 }

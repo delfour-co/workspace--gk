@@ -1,0 +1,431 @@
+{% extends "base.html" %}
+
+{% block title %}Chat - GK Assistant{% endblock %}
+
+{% block content %}
+<div class="flex h-screen bg-gray-50 dark:bg-gray-900">
+    <!-- Sidebar -->
+    <aside class="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+        <!-- Header -->
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between mb-4">
+                <h1 class="text-xl font-bold text-gray-900 dark:text-white">
+                    💬 GK Assistant
+                </h1>
+                <a href="/chat/logout" class="text-sm text-red-600 hover:text-red-700 dark:text-red-400">
+                    Logout
+                </a>
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">
+                {{ email }}
+            </div>
+        </div>
+
+        <!-- AI Status -->
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center space-x-2">
+                <div id="ai-status-indicator" class="w-3 h-3 bg-gray-400 rounded-full"></div>
+                <span id="ai-status-text" class="text-sm text-gray-600 dark:text-gray-400">Connecting...</span>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="p-4 space-y-2 flex-1 overflow-y-auto">
+            <h2 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-3">Quick Commands</h2>
+
+            <button onclick="sendQuickMessage('Ai-je de nouveaux emails ?')"
+                class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-300">
+                📧 Check new emails
+            </button>
+
+            <button onclick="sendQuickMessage('Liste mes 5 derniers emails')"
+                class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-300">
+                📋 List recent emails
+            </button>
+
+            <button onclick="sendQuickMessage('Résume mes emails non lus')"
+                class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-300">
+                📊 Summarize unread
+            </button>
+
+            <button onclick="sendQuickMessage('Aide-moi à composer un email')"
+                class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-300">
+                ✏️ Compose email
+            </button>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+            <div class="text-xs text-gray-500 dark:text-gray-400 text-center">
+                Powered by AI Runtime
+            </div>
+        </div>
+    </aside>
+
+    <!-- Chat Area -->
+    <main class="flex-1 flex flex-col">
+        <!-- Chat Header -->
+        <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                Conversation
+            </h2>
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+                Ask me anything about your emails
+            </p>
+        </header>
+
+        <!-- Messages Container -->
+        <div id="messages-container" class="flex-1 overflow-y-auto p-6 space-y-4">
+            <!-- Welcome Message -->
+            <div class="flex items-start space-x-3">
+                <div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
+                    AI
+                </div>
+                <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 max-w-2xl">
+                    <p class="text-gray-900 dark:text-white">
+                        👋 Hello! I'm your AI mail assistant. I can help you check emails, summarize messages, compose replies, and more. What would you like to do?
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
+            <form id="chat-form" class="flex space-x-4">
+                <input
+                    type="text"
+                    id="message-input"
+                    placeholder="Ask me anything..."
+                    class="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    autofocus
+                >
+                <button
+                    type="submit"
+                    id="send-button"
+                    class="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
+                >
+                    Send
+                </button>
+            </form>
+        </div>
+    </main>
+</div>
+
+<script>
+    // WebSocket connection to ai-runtime
+    const AI_RUNTIME_WS = 'ws://localhost:8888/ws';
+    let ws = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+
+    // Streaming state
+    let streamingMessageElement = null;
+    let streamingTextElement = null;
+
+    // DOM elements
+    const messagesContainer = document.getElementById('messages-container');
+    const messageInput = document.getElementById('message-input');
+    const chatForm = document.getElementById('chat-form');
+    const sendButton = document.getElementById('send-button');
+    const statusIndicator = document.getElementById('ai-status-indicator');
+    const statusText = document.getElementById('ai-status-text');
+
+    // Connect to AI runtime
+    function connectWebSocket() {
+        console.log('Connecting to AI runtime...');
+        updateStatus('connecting', 'Connecting...');
+
+        ws = new WebSocket(AI_RUNTIME_WS);
+
+        ws.onopen = () => {
+            console.log('Connected to AI runtime');
+            updateStatus('connected', 'Connected');
+            reconnectAttempts = 0;
+
+            // Authenticate with email
+            const authMessage = {
+                type: 'auth',
+                email: '{{ email }}'
+            };
+            ws.send(JSON.stringify(authMessage));
+            console.log('Sent authentication');
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                console.log('Received:', data);
+
+                // Handle different message types
+                if (data.type === 'auth_success') {
+                    console.log('Authenticated as:', data.email);
+                } else if (data.type === 'email_summaries') {
+                    // Show email summaries immediately after login
+                    if (data.count > 0) {
+                        let summaryText = `📬 Vous avez ${data.count} nouveau${data.count > 1 ? 'x' : ''} email${data.count > 1 ? 's' : ''} :\n\n`;
+                        data.summaries.forEach((summary, index) => {
+                            summaryText += `${index + 1}. De ${summary.from} - ${summary.subject}\n   → ${summary.summary}\n\n`;
+                        });
+                        addMessage('ai', summaryText);
+                    }
+                } else if (data.type === 'new_email_notification') {
+                    // Real-time notification for new email
+                    const notificationText = `✨ Nouvel email reçu !\n\nDe: ${data.from}\nSujet: ${data.subject}\n\n→ ${data.summary}`;
+                    addMessage('ai', notificationText);
+                } else if (data.type === 'chunk') {
+                    // Streaming response chunk
+                    hideLoadingIndicator();
+
+                    if (!streamingMessageElement) {
+                        // Create new streaming message on first chunk
+                        streamingMessageElement = document.createElement('div');
+                        streamingMessageElement.className = 'flex items-start space-x-3';
+                        streamingMessageElement.innerHTML = `
+                            <div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
+                                AI
+                            </div>
+                            <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 max-w-2xl">
+                                <p class="text-gray-900 dark:text-white whitespace-pre-wrap"></p>
+                            </div>
+                        `;
+                        messagesContainer.appendChild(streamingMessageElement);
+                        streamingTextElement = streamingMessageElement.querySelector('p');
+                    }
+
+                    // Append chunk to streaming message
+                    if (streamingTextElement) {
+                        streamingTextElement.textContent += (streamingTextElement.textContent ? ' ' : '') + data.content;
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    }
+                } else if (data.type === 'tool_call') {
+                    // Show tool being called
+                    addMessage('system', `🔧 Calling: ${data.tool}`);
+                } else if (data.type === 'tool_result') {
+                    // Tool executed (we can skip showing this to user)
+                    console.log('Tool result:', data.tool);
+                } else if (data.type === 'done') {
+                    // Final response - streaming is complete
+                    hideLoadingIndicator();
+                    enableInput();
+
+                    // If we have streamed content, just finalize it
+                    if (streamingMessageElement) {
+                        streamingMessageElement = null;
+                        streamingTextElement = null;
+                    } else if (data.content) {
+                        // Fallback for non-streamed responses
+                        addMessage('ai', data.content);
+                    }
+                } else if (data.type === 'error') {
+                    hideLoadingIndicator();
+                    enableInput();
+                    addMessage('error', data.message);
+                }
+                // Legacy support
+                else if (data.response) {
+                    hideLoadingIndicator();
+                    enableInput();
+                    addMessage('ai', data.response);
+                } else if (data.error) {
+                    hideLoadingIndicator();
+                    enableInput();
+                    addMessage('error', data.error);
+                }
+            } catch (e) {
+                console.error('Failed to parse message:', e);
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+            updateStatus('error', 'Connection error');
+        };
+
+        ws.onclose = () => {
+            console.log('Disconnected from AI runtime');
+            updateStatus('disconnected', 'Disconnected');
+
+            // Try to reconnect
+            if (reconnectAttempts < maxReconnectAttempts) {
+                reconnectAttempts++;
+                setTimeout(() => {
+                    console.log(`Reconnecting... (attempt ${reconnectAttempts})`);
+                    connectWebSocket();
+                }, 2000 * reconnectAttempts);
+            }
+        };
+    }
+
+    // Update connection status
+    function updateStatus(status, text) {
+        statusText.textContent = text;
+
+        switch(status) {
+            case 'connected':
+                statusIndicator.className = 'w-3 h-3 bg-green-500 rounded-full';
+                break;
+            case 'connecting':
+                statusIndicator.className = 'w-3 h-3 bg-yellow-500 rounded-full animate-pulse';
+                break;
+            case 'disconnected':
+            case 'error':
+                statusIndicator.className = 'w-3 h-3 bg-red-500 rounded-full';
+                break;
+        }
+    }
+
+    // Add message to chat
+    function addMessage(sender, text) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'flex items-start space-x-3';
+
+        if (sender === 'user') {
+            messageDiv.className += ' flex-row-reverse space-x-reverse';
+            messageDiv.innerHTML = `
+                <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
+                    U
+                </div>
+                <div class="bg-blue-600 text-white rounded-lg p-4 max-w-2xl">
+                    <p>${escapeHtml(text)}</p>
+                </div>
+            `;
+        } else if (sender === 'ai') {
+            const hasEmails = text.includes('email') || text.includes('📬');
+            messageDiv.innerHTML = `
+                <div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
+                    AI
+                </div>
+                <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 max-w-2xl">
+                    <p class="text-gray-900 dark:text-white whitespace-pre-wrap">${escapeHtml(text)}</p>
+                    ${hasEmails ? `
+                        <div class="mt-3 flex gap-2 flex-wrap">
+                            <button onclick="sendQuickMessage('Lis le premier')" class="text-xs px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700">
+                                📖 Lire le 1er
+                            </button>
+                            <button onclick="sendQuickMessage('Combien j\\'ai d\\'emails non lus ?')" class="text-xs px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700">
+                                📊 Compter
+                            </button>
+                            <button onclick="sendQuickMessage('Résume mes emails')" class="text-xs px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700">
+                                ✨ Résumer
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        } else if (sender === 'system') {
+            messageDiv.innerHTML = `
+                <div class="w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center text-white font-semibold flex-shrink-0">
+                    ⚙️
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 max-w-2xl">
+                    <p class="text-sm text-gray-700 dark:text-gray-300">${escapeHtml(text)}</p>
+                </div>
+            `;
+        } else if (sender === 'error') {
+            messageDiv.innerHTML = `
+                <div class="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
+                    ⚠️
+                </div>
+                <div class="bg-red-100 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 max-w-2xl">
+                    <p class="text-red-600 dark:text-red-400">${escapeHtml(text)}</p>
+                </div>
+            `;
+        }
+
+        messagesContainer.appendChild(messageDiv);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    // Send message
+    function sendMessage(text) {
+        if (!text.trim()) return;
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+            addMessage('error', 'Not connected to AI runtime. Please wait...');
+            return;
+        }
+
+        // Add user message to UI
+        addMessage('user', text);
+
+        // Show loading indicator
+        showLoadingIndicator();
+
+        // Disable input while processing
+        messageInput.disabled = true;
+        sendButton.disabled = true;
+
+        // Send to AI runtime with proper format
+        const chatMessage = {
+            type: 'chat',
+            message: text
+        };
+        ws.send(JSON.stringify(chatMessage));
+
+        // Clear input
+        messageInput.value = '';
+    }
+
+    // Quick message helper
+    function sendQuickMessage(text) {
+        messageInput.value = text;
+        sendMessage(text);
+    }
+
+    // Loading indicator
+    let loadingIndicatorDiv = null;
+
+    function showLoadingIndicator() {
+        // Remove any existing indicator
+        if (loadingIndicatorDiv) {
+            loadingIndicatorDiv.remove();
+        }
+
+        loadingIndicatorDiv = document.createElement('div');
+        loadingIndicatorDiv.id = 'loading-indicator';
+        loadingIndicatorDiv.className = 'flex items-start space-x-3';
+        loadingIndicatorDiv.innerHTML = `
+            <div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
+                AI
+            </div>
+            <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 max-w-2xl">
+                <div class="flex space-x-2">
+                    <div class="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+                    <div class="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+                    <div class="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+                </div>
+            </div>
+        `;
+        messagesContainer.appendChild(loadingIndicatorDiv);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function hideLoadingIndicator() {
+        if (loadingIndicatorDiv) {
+            loadingIndicatorDiv.remove();
+            loadingIndicatorDiv = null;
+        }
+    }
+
+    function enableInput() {
+        messageInput.disabled = false;
+        sendButton.disabled = false;
+        messageInput.focus();
+    }
+
+    // Escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Form submit handler
+    chatForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        sendMessage(messageInput.value);
+    });
+
+    // Connect on page load
+    connectWebSocket();
+</script>
+{% endblock %}

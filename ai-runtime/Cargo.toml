@@ -37,3 +37,10 @@ futures = "0.3"
 
 # Config
 config = { workspace = true }
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "sqlite", "macros"] }
+chrono = "0.4"
+
+[dev-dependencies]
+tokio-tungstenite = "0.21"

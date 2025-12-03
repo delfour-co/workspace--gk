@@ -91,7 +91,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::List => {
             println!("Listing all users...\n");
 
-            let users = auth.list_users().await?;
+            let users = auth.list_users_detailed().await?;
 
             if users.is_empty() {
                 println!("No users found.");

@@ -16,7 +16,7 @@ use tokio::sync::RwLock;
 use tower_http::cors::{Any, CorsLayer};
 use tracing::{info, warn};
 
-use crate::api::admin;
+use crate::api::{admin, web};
 use crate::api::auth::{Claims, JwtConfig};
 use crate::api::handlers::{self, ApiError, AppState};
 use crate::security::Authenticator;
@@ -123,9 +123,9 @@ impl ApiServer {
                 auth_middleware,
             ));
 
-        // Admin routes (auth required + admin role check)
+        // Admin API routes (auth required + admin role check)
         use axum::routing::{delete, patch};
-        let admin_routes = Router::new()
+        let admin_api_routes = Router::new()
             .route("/users", get(admin::list_users))
             .route("/users/:id", get(admin::get_user))
             .route("/users", post(admin::create_user))
@@ -138,10 +138,35 @@ impl ApiServer {
                 auth_middleware,
             ));
 
-        // Combine all routes under /api prefix
+        // Web routes (HTML pages)
+        let web_state = Arc::new(web::AppState {
+            authenticator: self.state.authenticator.clone(),
+        });
+
+        let web_routes = Router::new()
+            .route("/admin/login", get(web::login_page))
+            .route("/admin/login", post(web::login_submit))
+            .route("/admin/logout", get(web::logout))
+            .route("/admin/dashboard", get(web::dashboard))
+            .route("/admin/users", get(web::users_page))
+            .route("/admin/users", post(web::create_user))
+            .route("/admin/users/:id", delete(web::delete_user))
+            .with_state(web_state.clone());
+
+        // Chat routes (user-facing chatbot interface)
+        let chat_routes = Router::new()
+            .route("/chat/login", get(web::chat_login_page))
+            .route("/chat/login", post(web::chat_login_submit))
+            .route("/chat/logout", get(web::chat_logout))
+            .route("/chat/app", get(web::chat_app))
+            .with_state(web_state);
+
+        // Combine all routes
         Router::new()
             .nest("/api", public_routes.merge(protected_routes))
-            .nest("/api/admin", admin_routes)
+            .nest("/api/admin", admin_api_routes)
+            .merge(web_routes)
+            .merge(chat_routes)
             .layer(cors)
             .with_state(self.state.clone())
     }

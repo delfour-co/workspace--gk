@@ -9,6 +9,7 @@ pub struct Config {
     pub imap: ImapConfig,
     pub storage: StorageConfig,
     pub logging: LoggingConfig,
+    pub authentication: AuthenticationConfig,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -50,6 +51,22 @@ pub struct LoggingConfig {
     pub format: String,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct AuthenticationConfig {
+    // SPF validation for incoming emails
+    pub spf_enabled: bool,
+    pub spf_reject_on_fail: bool, // false = mark spam, true = reject
+
+    // DKIM signing for outgoing emails
+    pub dkim_enabled: bool,
+    pub dkim_domain: String,
+    pub dkim_selector: String,
+    pub dkim_private_key_path: String,
+
+    // DKIM validation for incoming emails
+    pub dkim_validate_incoming: bool,
+}
+
 impl Config {
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let content = std::fs::read_to_string(path)
@@ -89,6 +106,15 @@ impl Config {
             logging: LoggingConfig {
                 level: "info".to_string(),
                 format: "pretty".to_string(),
+            },
+            authentication: AuthenticationConfig {
+                spf_enabled: false,
+                spf_reject_on_fail: false,
+                dkim_enabled: false,
+                dkim_domain: "localhost".to_string(),
+                dkim_selector: "default".to_string(),
+                dkim_private_key_path: "test_data/dkim/dkim_private.pem".to_string(),
+                dkim_validate_incoming: false,
             },
         }
     }

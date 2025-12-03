@@ -1,7 +1,6 @@
 use super::types::{AuthenticationStatus, SpfAuthResult};
 use anyhow::Result;
-use mail_auth::spf::{Spf, SpfResult as MailAuthSpfResult};
-use mail_auth::Resolver;
+use mail_auth::{Resolver, SpfResult as MailAuthSpfResult};
 use std::net::IpAddr;
 use std::sync::Arc;
 use tracing::{debug, info, warn};
@@ -53,17 +52,13 @@ impl SpfValidator {
             .nth(1)
             .unwrap_or(envelope_from);
 
-        // Perform SPF check using mail-auth
-        let spf_result = Spf::new()
-            .check_host(
-                client_ip,
-                domain,
-                helo_domain,
-                &envelope_from,
-                &self.resolver,
-            )
+        // Perform SPF check using mail-auth Resolver
+        let spf_output = self.resolver
+            .verify_spf_sender(client_ip, helo_domain, domain, envelope_from)
             .await;
 
+        // Get the SPF result
+        let spf_result = spf_output.result();
         debug!("SPF result: {:?}", spf_result);
 
         // Convert mail-auth result to our AuthenticationStatus
@@ -102,12 +97,12 @@ impl SpfValidator {
             status,
             client_ip: client_ip.to_string(),
             envelope_from: envelope_from.to_string(),
-            reason: Some(self.get_reason_message(&spf_result)),
+            reason: Some(self.get_reason_message(spf_result)),
         })
     }
 
     /// Get human-readable reason message for SPF result
-    fn get_reason_message(&self, result: &MailAuthSpfResult) -> String {
+    fn get_reason_message(&self, result: MailAuthSpfResult) -> String {
         match result {
             MailAuthSpfResult::Pass => {
                 "Client IP is authorized to send for this domain".to_string()

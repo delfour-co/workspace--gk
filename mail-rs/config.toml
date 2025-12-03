@@ -1,0 +1,42 @@
+[server]
+domain = "delfour.co"
+hostname = "mail.delfour.co"
+
+[smtp]
+listen_addr = "0.0.0.0:2525"
+enable_tls = false
+enable_auth = true
+auth_database_url = "sqlite://data/users.db"
+require_auth = false
+require_tls = false
+max_message_size = 10485760  # 10MB
+
+[imap]
+listen_addr = "0.0.0.0:1993"
+enable_tls = false
+
+[api]
+listen_addr = "0.0.0.0:8080"
+jwt_secret = "dev-secret-key-change-in-production"
+
+[storage]
+maildir_path = "data/maildir"
+database_url = "sqlite://data/queue.db"
+
+[logging]
+level = "info"
+format = "pretty"
+
+[authentication]
+# SPF validation for incoming emails
+spf_enabled = true
+spf_reject_on_fail = false  # false = mark spam, true = reject
+
+# DKIM signing for outgoing emails
+dkim_enabled = true
+dkim_domain = "delfour.co"
+dkim_selector = "default"
+dkim_private_key_path = "test_data/dkim/dkim_private.pem"
+
+# DKIM validation for incoming emails
+dkim_validate_incoming = true

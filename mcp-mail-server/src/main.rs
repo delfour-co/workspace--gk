@@ -224,6 +224,57 @@ fn handle_tools_list(id: u64) -> Result<Json<McpResponse>, (StatusCode, String)>
             ],
             server: "mail".to_string(),
         },
+        Tool {
+            name: "mark_as_read".to_string(),
+            description: "Mark an email as read by moving it from new/ to cur/".to_string(),
+            parameters: vec![
+                ToolParameter {
+                    name: "email".to_string(),
+                    description: "Email address (e.g. test@example.com)".to_string(),
+                    param_type: "string".to_string(),
+                    required: true,
+                },
+                ToolParameter {
+                    name: "email_id".to_string(),
+                    description: "Email ID from list_emails result".to_string(),
+                    param_type: "string".to_string(),
+                    required: true,
+                },
+            ],
+            server: "mail".to_string(),
+        },
+        Tool {
+            name: "delete_email".to_string(),
+            description: "Delete an email permanently".to_string(),
+            parameters: vec![
+                ToolParameter {
+                    name: "email".to_string(),
+                    description: "Email address (e.g. test@example.com)".to_string(),
+                    param_type: "string".to_string(),
+                    required: true,
+                },
+                ToolParameter {
+                    name: "email_id".to_string(),
+                    description: "Email ID from list_emails result".to_string(),
+                    param_type: "string".to_string(),
+                    required: true,
+                },
+            ],
+            server: "mail".to_string(),
+        },
+        Tool {
+            name: "get_email_count".to_string(),
+            description: "Get the count of unread emails in new/ folder".to_string(),
+            parameters: vec![
+                ToolParameter {
+                    name: "email".to_string(),
+                    description: "Email address (e.g. test@example.com)".to_string(),
+                    param_type: "string".to_string(),
+                    required: true,
+                },
+            ],
+            server: "mail".to_string(),
+        },
     ];
 
     Ok(Json(McpResponse {
@@ -260,6 +311,9 @@ async fn handle_tools_call(
         "list_emails" => list_emails_tool(arguments, request.id).await,
         "read_email" => read_email_tool(arguments, request.id).await,
         "search_emails" => search_emails_tool(arguments, request.id).await,
+        "mark_as_read" => mark_as_read_tool(arguments, request.id).await,
+        "delete_email" => delete_email_tool(arguments, request.id).await,
+        "get_email_count" => get_email_count_tool(arguments, request.id).await,
         _ => Ok(Json(McpResponse {
             jsonrpc: "2.0".to_string(),
             result: None,
@@ -433,7 +487,7 @@ async fn list_emails_tool(
 
     if let Some(email) = email_filter {
         // List emails for specific address
-        let maildir_path = format!("/tmp/maildir/{}/new", email);
+        let maildir_path = format!("mail-rs/data/maildir/{}/new", email);
         let path = Path::new(&maildir_path);
 
         if !path.exists() {
@@ -452,7 +506,7 @@ async fn list_emails_tool(
         all_emails = read_maildir_emails(path, email, limit)?;
     } else {
         // List emails from ALL mailboxes
-        let maildir_root = Path::new("/tmp/maildir");
+        let maildir_root = Path::new("mail-rs/data/maildir");
 
         if maildir_root.exists() {
             if let Ok(entries) = fs::read_dir(maildir_root) {
@@ -583,7 +637,7 @@ async fn read_email_tool(
     info!("📧 Reading email: {} for {}", email_id, email);
 
     // Read email file
-    let email_path = format!("/tmp/maildir/{}/new/{}", email, email_id);
+    let email_path = format!("mail-rs/data/maildir/{}/new/{}", email, email_id);
 
     match fs::read_to_string(&email_path) {
         Ok(content) => {
@@ -654,7 +708,7 @@ async fn search_emails_tool(
 
     info!("🔍 Searching emails for: {} with query: {}", email, query);
 
-    let maildir_path = format!("/tmp/maildir/{}/new", email);
+    let maildir_path = format!("mail-rs/data/maildir/{}/new", email);
     let path = Path::new(&maildir_path);
 
     if !path.exists() {
@@ -723,6 +777,163 @@ async fn search_emails_tool(
             "emails": matching_emails,
             "count": matching_emails.len(),
             "query": query,
+        })),
+        error: None,
+        id,
+    }))
+}
+
+/// Mark email as read tool implementation
+async fn mark_as_read_tool(
+    arguments: HashMap<String, serde_json::Value>,
+    id: u64,
+) -> Result<Json<McpResponse>, (StatusCode, String)> {
+    use std::fs;
+    use std::path::Path;
+
+    let email = arguments
+        .get("email")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| (StatusCode::BAD_REQUEST, "Missing 'email' argument".to_string()))?;
+
+    let email_id = arguments
+        .get("email_id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| (StatusCode::BAD_REQUEST, "Missing 'email_id' argument".to_string()))?;
+
+    info!("📖 Marking email as read: {} for {}", email_id, email);
+
+    // Move email from new/ to cur/
+    let new_path = format!("mail-rs/data/maildir/{}/new/{}", email, email_id);
+    let cur_path = format!("mail-rs/data/maildir/{}/cur/{}", email, email_id);
+
+    match fs::rename(&new_path, &cur_path) {
+        Ok(_) => {
+            info!("✅ Email marked as read: {}", email_id);
+            Ok(Json(McpResponse {
+                jsonrpc: "2.0".to_string(),
+                result: Some(serde_json::json!({
+                    "success": true,
+                    "message": format!("Email {} marked as read", email_id)
+                })),
+                error: None,
+                id,
+            }))
+        }
+        Err(e) => {
+            warn!("⚠️  Failed to mark email as read: {}", e);
+            Ok(Json(McpResponse {
+                jsonrpc: "2.0".to_string(),
+                result: Some(serde_json::json!({
+                    "success": false,
+                    "error": format!("Failed to mark email as read: {}", e)
+                })),
+                error: None,
+                id,
+            }))
+        }
+    }
+}
+
+/// Delete email tool implementation
+async fn delete_email_tool(
+    arguments: HashMap<String, serde_json::Value>,
+    id: u64,
+) -> Result<Json<McpResponse>, (StatusCode, String)> {
+    use std::fs;
+    use std::path::Path;
+
+    let email = arguments
+        .get("email")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| (StatusCode::BAD_REQUEST, "Missing 'email' argument".to_string()))?;
+
+    let email_id = arguments
+        .get("email_id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| (StatusCode::BAD_REQUEST, "Missing 'email_id' argument".to_string()))?;
+
+    info!("🗑️  Deleting email: {} for {}", email_id, email);
+
+    // Try to delete from new/ or cur/
+    let new_path = format!("mail-rs/data/maildir/{}/new/{}", email, email_id);
+    let cur_path = format!("mail-rs/data/maildir/{}/cur/{}", email, email_id);
+
+    let deleted = if Path::new(&new_path).exists() {
+        fs::remove_file(&new_path).is_ok()
+    } else if Path::new(&cur_path).exists() {
+        fs::remove_file(&cur_path).is_ok()
+    } else {
+        false
+    };
+
+    if deleted {
+        info!("✅ Email deleted: {}", email_id);
+        Ok(Json(McpResponse {
+            jsonrpc: "2.0".to_string(),
+            result: Some(serde_json::json!({
+                "success": true,
+                "message": format!("Email {} deleted", email_id)
+            })),
+            error: None,
+            id,
+        }))
+    } else {
+        warn!("⚠️  Failed to delete email: not found");
+        Ok(Json(McpResponse {
+            jsonrpc: "2.0".to_string(),
+            result: Some(serde_json::json!({
+                "success": false,
+                "error": "Email not found or already deleted"
+            })),
+            error: None,
+            id,
+        }))
+    }
+}
+
+/// Get email count tool implementation
+async fn get_email_count_tool(
+    arguments: HashMap<String, serde_json::Value>,
+    id: u64,
+) -> Result<Json<McpResponse>, (StatusCode, String)> {
+    use std::fs;
+    use std::path::Path;
+
+    let email = arguments
+        .get("email")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| (StatusCode::BAD_REQUEST, "Missing 'email' argument".to_string()))?;
+
+    info!("📊 Getting email count for: {}", email);
+
+    let maildir_path = format!("mail-rs/data/maildir/{}/new", email);
+    let path = Path::new(&maildir_path);
+
+    if !path.exists() {
+        return Ok(Json(McpResponse {
+            jsonrpc: "2.0".to_string(),
+            result: Some(serde_json::json!({
+                "count": 0,
+                "email": email
+            })),
+            error: None,
+            id,
+        }));
+    }
+
+    let count = match fs::read_dir(path) {
+        Ok(entries) => entries.filter(|e| e.is_ok()).count(),
+        Err(_) => 0,
+    };
+
+    info!("📧 Found {} unread emails for {}", count, email);
+
+    Ok(Json(McpResponse {
+        jsonrpc: "2.0".to_string(),
+        result: Some(serde_json::json!({
+            "count": count,
+            "email": email
         })),
         error: None,
         id,
