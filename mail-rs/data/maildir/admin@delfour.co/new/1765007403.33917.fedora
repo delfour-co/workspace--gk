@@ -1,0 +1,13 @@
+Authentication-Results: mail.delfour.co; spf=fail smtp.mailfrom=test@example.com
+From: test@example.com
+To: admin@delfour.co
+Subject: SPF/DKIM Test Email
+Date: Mon, 3 Dec 2025 12:00:00 +0000
+Message-ID: <test-spf-dkim@example.com>
+
+This is a test email to verify SPF/DKIM authentication.
+
+The server should:
+1. Validate SPF for the sender IP
+2. Validate DKIM signature (if present)
+3. Add Authentication-Results header
