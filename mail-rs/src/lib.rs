@@ -46,7 +46,9 @@
 //! - [`storage`]: Email storage backends
 //! - [`security`]: TLS and authentication
 //! - [`utils`]: Utility functions (validation, etc.)
+//! - [`admin`]: Mail-in-a-Box administration tools
 
+pub mod admin;
 pub mod antispam;
 pub mod api;
 pub mod authentication;
