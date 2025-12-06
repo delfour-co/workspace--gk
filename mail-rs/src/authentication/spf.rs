@@ -160,7 +160,8 @@ mod tests {
     #[tokio::test]
     async fn test_spf_validator_creation() {
         let validator = SpfValidator::new();
-        assert!(validator.resolver.is_locked().not()); // Just check it was created
+        // Just check it was created successfully
+        assert!(Arc::strong_count(&validator.resolver) >= 1);
     }
 
     #[tokio::test]
@@ -227,5 +228,129 @@ mod tests {
         };
 
         assert!(!validator.should_flag_as_spam(&pass_result));
+    }
+
+    #[test]
+    fn test_should_not_reject_softfail() {
+        let validator = SpfValidator::new();
+
+        let softfail_result = SpfAuthResult {
+            status: AuthenticationStatus::SoftFail,
+            client_ip: "1.2.3.4".to_string(),
+            envelope_from: "test@example.com".to_string(),
+            reason: Some("Soft fail policy".to_string()),
+        };
+
+        // SoftFail should flag as spam but NOT reject
+        assert!(!validator.should_reject(&softfail_result));
+        assert!(validator.should_flag_as_spam(&softfail_result));
+    }
+
+    #[test]
+    fn test_should_not_reject_neutral() {
+        let validator = SpfValidator::new();
+
+        let neutral_result = SpfAuthResult {
+            status: AuthenticationStatus::Neutral,
+            client_ip: "1.2.3.4".to_string(),
+            envelope_from: "test@example.com".to_string(),
+            reason: Some("No assertion".to_string()),
+        };
+
+        assert!(!validator.should_reject(&neutral_result));
+        assert!(!validator.should_flag_as_spam(&neutral_result));
+    }
+
+    #[test]
+    fn test_should_not_reject_temperror() {
+        let validator = SpfValidator::new();
+
+        let temperror_result = SpfAuthResult {
+            status: AuthenticationStatus::TempError,
+            client_ip: "1.2.3.4".to_string(),
+            envelope_from: "test@example.com".to_string(),
+            reason: Some("DNS timeout".to_string()),
+        };
+
+        // Temporary errors should not cause rejection
+        assert!(!validator.should_reject(&temperror_result));
+    }
+
+    #[test]
+    fn test_should_not_reject_none() {
+        let validator = SpfValidator::new();
+
+        let none_result = SpfAuthResult {
+            status: AuthenticationStatus::None,
+            client_ip: "1.2.3.4".to_string(),
+            envelope_from: "test@example.com".to_string(),
+            reason: Some("No SPF record".to_string()),
+        };
+
+        // Missing SPF record should not cause rejection
+        assert!(!validator.should_reject(&none_result));
+    }
+
+    #[test]
+    fn test_get_reason_message_all_statuses() {
+        let validator = SpfValidator::new();
+
+        // Test that all status types have reason messages
+        let statuses = vec![
+            (MailAuthSpfResult::Pass, "authorized"),
+            (MailAuthSpfResult::Fail, "not authorized"),
+            (MailAuthSpfResult::SoftFail, "may not be authorized"),
+            (MailAuthSpfResult::Neutral, "does not assert"),
+            (MailAuthSpfResult::TempError, "error"),
+            (MailAuthSpfResult::PermError, "error"),
+            (MailAuthSpfResult::None, "no spf"),
+        ];
+
+        for (status, expected_keyword) in statuses {
+            let reason = validator.get_reason_message(status);
+            assert!(!reason.is_empty(), "Reason should not be empty for {:?}", status);
+            assert!(
+                reason.to_lowercase().contains(expected_keyword),
+                "Reason '{}' should contain '{}'",
+                reason,
+                expected_keyword
+            );
+        }
+    }
+
+    #[test]
+    fn test_spf_validator_default() {
+        let validator = SpfValidator::default();
+        // Should successfully create validator using default trait
+        assert!(Arc::strong_count(&validator.resolver) >= 1);
+    }
+
+    #[test]
+    fn test_spf_result_with_ipv6() {
+        let result = SpfAuthResult {
+            status: AuthenticationStatus::Pass,
+            client_ip: "2001:db8::1".to_string(),
+            envelope_from: "test@example.com".to_string(),
+            reason: Some("IPv6 address authorized".to_string()),
+        };
+
+        assert_eq!(result.client_ip, "2001:db8::1");
+        assert!(result.client_ip.contains(":"));
+    }
+
+    #[test]
+    fn test_fail_result_should_be_flagged() {
+        let validator = SpfValidator::new();
+
+        let fail_result = SpfAuthResult {
+            status: AuthenticationStatus::Fail,
+            client_ip: "1.2.3.4".to_string(),
+            envelope_from: "spammer@evil.com".to_string(),
+            reason: Some("IP not authorized".to_string()),
+        };
+
+        // Fail should both reject AND flag as spam
+        assert!(validator.should_reject(&fail_result));
+        assert!(validator.should_flag_as_spam(&fail_result));
     }
 }
