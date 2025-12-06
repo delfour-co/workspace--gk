@@ -47,6 +47,7 @@
 //! - [`security`]: TLS and authentication
 //! - [`utils`]: Utility functions (validation, etc.)
 
+pub mod antispam;
 pub mod api;
 pub mod authentication;
 pub mod config;
