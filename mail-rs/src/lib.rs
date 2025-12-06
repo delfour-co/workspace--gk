@@ -53,6 +53,7 @@ pub mod config;
 pub mod error;
 pub mod imap;
 pub mod mime;
+pub mod quota;
 pub mod security;
 pub mod smtp;
 pub mod storage;
