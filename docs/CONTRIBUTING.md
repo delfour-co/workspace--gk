@@ -11,18 +11,26 @@ This project follows strict quality and security standards. All contributions mu
 #### 1. Code Formatting
 ```bash
 # Format code before committing
-cargo fmt
+just fmt
 
 # Check formatting
+just fmt-check
+
+# Or use cargo directly
+cargo fmt
 cargo fmt -- --check
 ```
 
 #### 2. Linting
 ```bash
 # Run clippy
-cargo clippy -- -D warnings
+just lint
 
-# More pedantic linting
+# Auto-fix issues
+just lint-fix
+
+# Or use cargo directly
+cargo clippy -- -D warnings
 cargo clippy -- -W clippy::all -W clippy::pedantic
 ```
 
@@ -262,19 +270,21 @@ Clean up resources properly:
 ### 1. Before Submitting
 
 ```bash
-# Format code
+# Quick workflow with Just
+just fmt && just lint && just test
+
+# Or individually
+just fmt          # Format code
+just lint         # Run linter
+just test         # Run all tests
+just audit        # Check for vulnerabilities
+just docs         # Build documentation
+
+# Or use cargo directly
 cargo fmt
-
-# Run linter
 cargo clippy -- -D warnings
-
-# Run all tests
 cargo test
-
-# Check for vulnerabilities
 cargo audit
-
-# Build documentation
 cargo doc --no-deps
 ```
 
@@ -364,12 +374,17 @@ Any breaking changes?
 git clone https://github.com/yourusername/gk.git
 cd gk
 
-# Install tools
-rustup component add rustfmt clippy
-cargo install cargo-audit
+# Install Just command runner
+cargo install just
 
-# Build
-cargo build
+# Complete automated setup
+just setup
+
+# This will:
+# - Check prerequisites (Rust, Ollama, SQLite)
+# - Pull LLM model
+# - Build the project
+# - Create default admin user
 ```
 
 ### 2. Make Changes
@@ -377,13 +392,15 @@ cargo build
 # Create feature branch
 git checkout -b feature/my-feature
 
-# Make changes
-# ...
+# Start development server
+just dev
 
-# Test locally
-cargo test
-cargo clippy
-cargo fmt
+# Make changes...
+# Tests run automatically with:
+just test
+
+# Format and lint
+just fmt && just lint
 ```
 
 ### 3. Commit
@@ -398,6 +415,90 @@ git commit -m "feat(smtp): add STARTTLS support"
 ```bash
 git push origin feature/my-feature
 # Create PR on GitHub
+```
+
+## Just Command Reference
+
+The project uses Just as a command runner for common development tasks. Run `just` or `just --list` to see all available commands.
+
+### Quick Start Commands
+```bash
+just setup       # Complete initial setup
+just dev         # Start all services
+just test        # Run all tests
+just admin       # Open admin panel
+just chat        # Open chat interface
+```
+
+### Development Commands
+```bash
+just dev              # Start all services
+just dev-mail         # Start mail server only
+just dev-mcp          # Start MCP server
+just dev-ai           # Start AI runtime
+just dev-mail-only    # Mail server for admin testing
+```
+
+### Build Commands
+```bash
+just build            # Debug build
+just build-release    # Release build
+just build-verbose    # Verbose build
+just build-mail       # Build mail-rs only
+just check            # Type check only
+```
+
+### Testing Commands
+```bash
+just test             # Run all tests
+just test-verbose     # Tests with output
+just test-mail        # Mail server tests
+just test-smtp        # SMTP integration tests
+just test-mcp         # MCP integration tests
+just test-ai          # AI runtime tests
+just test-e2e         # End-to-end tests
+```
+
+### Code Quality Commands
+```bash
+just fmt              # Format code
+just fmt-check        # Check formatting
+just lint             # Run clippy
+just lint-fix         # Auto-fix issues
+just check            # Type check
+just audit            # Security audit
+```
+
+### User Management Commands
+```bash
+just create-user EMAIL PASSWORD    # Create user
+just list-users                    # List all users
+just delete-user EMAIL             # Delete user
+just create-admin                  # Create default admin
+```
+
+### Database Commands
+```bash
+just reset-db         # Reset all databases (WARNING: deletes data)
+just backup-db        # Backup databases
+just clean-maildir    # Clean mailboxes only
+```
+
+### Utility Commands
+```bash
+just clean            # Clean build artifacts
+just clean-all        # Clean everything
+just stats            # Project statistics
+just docs             # Generate documentation
+just update           # Update dependencies
+just logs             # Show all logs
+just logs-mail        # Show mail server logs
+```
+
+### Quick Access Commands
+```bash
+just admin            # Open admin panel in browser
+just chat             # Open chat interface in browser
 ```
 
 ## Common Patterns
