@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+
+{% block title %}SSL Certificates - GK Mail Admin{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <h1 class="text-xl font-bold text-gray-900 dark:text-white">
+                        GK Mail Admin
+                    </h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">{{ email }}</span>
+                    <a href="/admin/logout" class="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium">
+                        🚪 Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white dark:bg-gray-800 min-h-[calc(100vh-4rem)] border-r border-gray-200 dark:border-gray-700">
+            <nav class="p-4 space-y-2">
+                <a href="/admin/dashboard"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">📊</span>
+                    <span class="font-medium">Dashboard</span>
+                </a>
+                <a href="/admin/users"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">👥</span>
+                    <span class="font-medium">Users</span>
+                </a>
+                <a href="/admin/dns"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🌐</span>
+                    <span class="font-medium">DNS Config</span>
+                </a>
+                <a href="/admin/diagnostics"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔍</span>
+                    <span class="font-medium">Diagnostics</span>
+                </a>
+                <a href="/admin/backups"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">💾</span>
+                    <span class="font-medium">Backups</span>
+                </a>
+                <a href="/admin/ssl"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+                    <span class="text-xl">🔒</span>
+                    <span class="font-medium">SSL Certificates</span>
+                </a>
+                <a href="/admin/settings"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">⚙️</span>
+                    <span class="font-medium">Settings</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-8">
+            <div class="max-w-7xl mx-auto space-y-6">
+                <!-- Header -->
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">SSL Certificates</h1>
+                        <p class="text-gray-600 dark:text-gray-400 mt-1">Manage SSL/TLS certificates for your mail server</p>
+                    </div>
+                    <button onclick="refreshCertificate()"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                        🔄 Refresh
+                    </button>
+                </div>
+
+                <!-- Certificate Status Card -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-xl font-bold text-gray-900 dark:text-white">Certificate Status</h2>
+                        <span id="cert-status-badge" class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium">
+                            Loading...
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="cert-details">
+                        <div class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Domain</p>
+                            <p id="cert-domain" class="text-lg font-medium text-gray-900 dark:text-white">Loading...</p>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Issuer</p>
+                            <p id="cert-issuer" class="text-lg font-medium text-gray-900 dark:text-white">Loading...</p>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Expires At</p>
+                            <p id="cert-expires" class="text-lg font-medium text-gray-900 dark:text-white">Loading...</p>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Days Until Expiry</p>
+                            <p id="cert-days" class="text-lg font-medium text-gray-900 dark:text-white">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Certificate Actions -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Certificate Actions</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <button onclick="renewCertificate()"
+                                id="renew-btn"
+                                class="flex items-center justify-center space-x-3 p-4 border-2 border-blue-500 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors font-medium">
+                            <span class="text-2xl">🔄</span>
+                            <div class="text-left">
+                                <div>Renew Certificate</div>
+                                <div class="text-sm font-normal text-gray-600 dark:text-gray-400">Renew existing Let's Encrypt certificate</div>
+                            </div>
+                        </button>
+
+                        <button onclick="requestCertificate()"
+                                id="request-btn"
+                                class="flex items-center justify-center space-x-3 p-4 border-2 border-green-500 text-green-600 dark:text-green-400 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors font-medium">
+                            <span class="text-2xl">📜</span>
+                            <div class="text-left">
+                                <div>Request New Certificate</div>
+                                <div class="text-sm font-normal text-gray-600 dark:text-gray-400">Get new certificate from Let's Encrypt</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Let's Encrypt Info -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">About Let's Encrypt</h2>
+                    <div class="space-y-3 text-sm text-gray-600 dark:text-gray-400">
+                        <div class="flex items-start">
+                            <span class="text-blue-600 dark:text-blue-400 mr-2">•</span>
+                            <span>Certificates are automatically renewed when they have less than 30 days until expiry</span>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="text-blue-600 dark:text-blue-400 mr-2">•</span>
+                            <span>Let's Encrypt certificates are valid for 90 days</span>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="text-blue-600 dark:text-blue-400 mr-2">•</span>
+                            <span>Certificates are free and trusted by all major browsers</span>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="text-blue-600 dark:text-blue-400 mr-2">•</span>
+                            <span>Your domain must be properly configured and pointing to this server</span>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="text-blue-600 dark:text-blue-400 mr-2">•</span>
+                            <span>Port 80 (HTTP) must be open for certificate validation</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Certificate Warnings -->
+                <div id="cert-warnings" class="hidden">
+                    <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <span class="text-yellow-600 dark:text-yellow-400 text-xl">⚠️</span>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-yellow-700 dark:text-yellow-300 font-medium">
+                                    Certificate Expiring Soon
+                                </p>
+                                <p class="mt-1 text-sm text-yellow-600 dark:text-yellow-400" id="warning-message">
+                                    Your certificate will expire soon. Consider renewing it.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+async function loadCertificateStatus() {
+    try {
+        const response = await fetch('/api/admin/ssl');
+        const data = await response.json();
+
+        // Update status badge
+        const statusColors = {
+            'Valid': 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
+            'Expiring Soon': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
+            'Expired': 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
+            'Not Found': 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+            'Error': 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+        };
+
+        const statusBadge = document.getElementById('cert-status-badge');
+        statusBadge.textContent = data.status;
+        statusBadge.className = `inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusColors[data.status] || 'bg-gray-100 text-gray-800'}`;
+
+        // Update certificate details
+        document.getElementById('cert-domain').textContent = data.domain;
+        document.getElementById('cert-issuer').textContent = data.issuer || 'N/A';
+
+        if (data.expires_at) {
+            const expiryDate = new Date(data.expires_at);
+            document.getElementById('cert-expires').textContent = expiryDate.toLocaleString();
+        } else {
+            document.getElementById('cert-expires').textContent = 'N/A';
+        }
+
+        if (data.days_until_expiry !== null && data.days_until_expiry !== undefined) {
+            const days = data.days_until_expiry;
+            const daysText = days + ' days';
+            const daysElement = document.getElementById('cert-days');
+            daysElement.textContent = daysText;
+
+            if (days < 0) {
+                daysElement.className = 'text-lg font-medium text-red-600 dark:text-red-400';
+            } else if (days < 30) {
+                daysElement.className = 'text-lg font-medium text-yellow-600 dark:text-yellow-400';
+            } else {
+                daysElement.className = 'text-lg font-medium text-gray-900 dark:text-white';
+            }
+
+            // Show warning if expiring soon or expired
+            if (days < 30) {
+                document.getElementById('cert-warnings').classList.remove('hidden');
+                if (days < 0) {
+                    document.getElementById('warning-message').textContent =
+                        'Your certificate has expired! Renew immediately to maintain secure connections.';
+                } else {
+                    document.getElementById('warning-message').textContent =
+                        `Your certificate will expire in ${days} days. Consider renewing it soon.`;
+                }
+            }
+        } else {
+            document.getElementById('cert-days').textContent = 'N/A';
+        }
+
+    } catch (error) {
+        console.error('Failed to load certificate status:', error);
+        document.getElementById('cert-status-badge').textContent = 'Error';
+        document.getElementById('cert-status-badge').className =
+            'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
+    }
+}
+
+async function renewCertificate() {
+    if (!confirm('Are you sure you want to renew the SSL certificate?\n\nThis may take a few moments.')) {
+        return;
+    }
+
+    const btn = document.getElementById('renew-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="text-2xl">⏳</span><div class="text-left"><div>Renewing...</div><div class="text-sm font-normal text-gray-600 dark:text-gray-400">Please wait</div></div>';
+
+    try {
+        const response = await fetch('/api/admin/ssl/renew', {
+            method: 'POST'
+        });
+
+        if (response.ok) {
+            alert('Certificate renewed successfully!');
+            await loadCertificateStatus();
+        } else {
+            const error = await response.json();
+            alert('Failed to renew certificate: ' + error.error);
+        }
+    } catch (error) {
+        console.error('Failed to renew certificate:', error);
+        alert('Failed to renew certificate: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="text-2xl">🔄</span><div class="text-left"><div>Renew Certificate</div><div class="text-sm font-normal text-gray-600 dark:text-gray-400">Renew existing Let\'s Encrypt certificate</div></div>';
+    }
+}
+
+async function requestCertificate() {
+    if (!confirm('Are you sure you want to request a new SSL certificate?\n\nThis requires:\n- Your domain to be pointing to this server\n- Port 80 (HTTP) to be open\n\nThis may take a few moments.')) {
+        return;
+    }
+
+    const btn = document.getElementById('request-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="text-2xl">⏳</span><div class="text-left"><div>Requesting...</div><div class="text-sm font-normal text-gray-600 dark:text-gray-400">Please wait</div></div>';
+
+    try {
+        const response = await fetch('/api/admin/ssl/request', {
+            method: 'POST'
+        });
+
+        if (response.ok) {
+            alert('Certificate requested successfully!');
+            await loadCertificateStatus();
+        } else {
+            const error = await response.json();
+            alert('Failed to request certificate: ' + error.error);
+        }
+    } catch (error) {
+        console.error('Failed to request certificate:', error);
+        alert('Failed to request certificate: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="text-2xl">📜</span><div class="text-left"><div>Request New Certificate</div><div class="text-sm font-normal text-gray-600 dark:text-gray-400">Get new certificate from Let\'s Encrypt</div></div>';
+    }
+}
+
+function refreshCertificate() {
+    loadCertificateStatus();
+}
+
+// Load certificate status on page load
+document.addEventListener('DOMContentLoaded', loadCertificateStatus);
+</script>
+{% endblock %}

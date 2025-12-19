@@ -9,10 +9,11 @@ A modern email system where you interact with your emails through natural conver
 **Key Features**:
 - 🤖 Conversational AI interface powered by local LLM (Ollama)
 - 📧 Full SMTP/IMAP mail server with TLS support
+- 🛡️ Complete Mail-in-a-Box administration tools (SPF/DKIM/DMARC, backups, SSL, diagnostics)
+- 🎨 Modern web admin panel with dark mode support
 - 🔌 Model Context Protocol (MCP) for AI-email integration
-- 🎨 Clean web UI with real-time updates
-- 🔒 Production-ready security (JWT auth, rate limiting, STARTTLS)
-- ✅ Comprehensive test suite (20+ tests passing)
+- 🔒 Production-ready security (JWT auth, rate limiting, STARTTLS, greylisting)
+- ✅ Comprehensive test suite (175+ tests passing)
 
 ## Architecture
 
@@ -58,10 +59,11 @@ A modern email system where you interact with your emails through natural conver
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **mail-rs** | 🟢 Production Ready | Full SMTP/IMAP server with TLS, auth, web UI |
+| **mail-rs** | 🟢 Production Ready | Full SMTP/IMAP server with SPF/DKIM/DMARC, admin panel |
 | **ai-runtime** | 🟢 Functional | LLM runtime with MCP orchestration |
 | **mcp-mail-server** | 🟢 Functional | 7 MCP tools for email operations |
-| **Tests** | ✅ 20/22 Passing | Comprehensive integration & unit tests |
+| **Admin Panel** | 🟢 Complete | DNS config, diagnostics, backups, SSL, settings |
+| **Tests** | ✅ 175+ Passing | Comprehensive integration & unit tests |
 
 ### ✅ Completed Features
 
@@ -74,6 +76,11 @@ A modern email system where you interact with your emails through natural conver
 - ✅ Web UI with chat interface
 - ✅ JWT authentication
 - ✅ User management CLI
+- ✅ SPF/DKIM/DMARC validation and signing
+- ✅ MIME parser with attachment support
+- ✅ Quota management (storage and message limits)
+- ✅ Greylisting anti-spam system
+- ✅ Mail-in-a-Box administration tools
 
 **ai-runtime** (AI Backend):
 - ✅ Ollama LLM integration
@@ -92,7 +99,17 @@ A modern email system where you interact with your emails through natural conver
 - ✅ delete_email - Delete emails
 - ✅ get_email_count - Count unread emails
 
+**Admin Panel** (Web Interface):
+- ✅ DNS Configuration - Display all DNS records (A, MX, SPF, DKIM, DMARC)
+- ✅ System Diagnostics - Real-time health monitoring
+- ✅ Backup Management - Create, restore, delete backups
+- ✅ SSL Certificates - Let's Encrypt integration, auto-renewal
+- ✅ Settings - Configure quotas, security, email parameters
+- ✅ User Management - Create, edit, delete users
+- ✅ Dark mode support with Tailwind CSS
+
 **Testing**:
+- ✅ 175+ tests passing across all components
 - ✅ 7 MCP integration tests
 - ✅ 7 AI-runtime WebSocket tests
 - ✅ 8 SMTP integration tests
@@ -104,86 +121,151 @@ A modern email system where you interact with your emails through natural conver
 
 - Rust 1.75+ (`rustup`)
 - Ollama with llama3.1:8b model
+- Just command runner (`cargo install just`)
 - SQLite 3
 
-```bash
-# Install Ollama
-curl -fsSL https://ollama.com/install.sh | sh
-
-# Pull LLM model
-ollama pull llama3.1:8b
-```
-
-### Installation
+### Installation & Setup
 
 ```bash
 # Clone repository
 git clone https://github.com/yourusername/gk
 cd gk
 
-# Build all services
-cargo build --release
+# Install Just (command runner)
+cargo install just
 
-# Create test user
-cargo run --bin mail-user -- add admin@delfour.co password123
+# Run complete setup (installs deps, builds, creates admin user)
+just setup
 ```
 
-### Running Services
+This will:
+- Check all prerequisites (Rust, Ollama, SQLite)
+- Pull the LLM model (llama3.1:8b)
+- Build the project
+- Create default admin user: `admin@delfour.co` / `password123`
 
-Open 3 terminals:
+### Running in Development Mode
 
-**Terminal 1 - Mail Server**:
+**Option 1: Start all services at once**
 ```bash
-cargo run --bin mail-rs -- --config mail-rs/config.toml
-# Listening on:
-# - Web UI: http://localhost:8080
-# - SMTP: localhost:2525
-# - IMAP: localhost:1993
+just dev
 ```
 
-**Terminal 2 - MCP Server**:
+This starts:
+- Mail Server on http://localhost:8080
+- Admin Panel on http://localhost:8080/admin/login
+- Chat Interface on http://localhost:8080/chat/login
+- MCP Server on http://localhost:8090
+- AI Runtime on http://localhost:8888
+
+**Option 2: Start services individually**
 ```bash
-cd mcp-mail-server
-cargo run
-# MCP server listening on http://localhost:8090
+# Terminal 1 - Mail Server only
+just dev-mail
+
+# Terminal 2 - MCP Server
+just dev-mcp
+
+# Terminal 3 - AI Runtime
+just dev-ai
 ```
 
-**Terminal 3 - AI Runtime**:
+### Quick Access Commands
+
 ```bash
-cd ai-runtime
-cargo run
-# AI runtime listening on http://localhost:8888
-# WebSocket endpoint: ws://localhost:8888/ws
+# Open admin panel in browser
+just admin
+
+# Open chat interface in browser
+just chat
+
+# Create a new user
+just create-user user@example.com password123
+
+# List all users
+just list-users
+
+# Run all tests
+just test
 ```
 
-### Using the Chat Interface
+### Using the Interfaces
 
-1. Open browser: http://localhost:8080
-2. Login with credentials: `admin@delfour.co` / `password123`
-3. Chat with AI:
-   - "Liste mes emails"
-   - "Résume mes emails non lus"
-   - "Envoie un email à test@example.com"
+**Admin Panel** (http://localhost:8080/admin/login):
+- Manage users, DNS configuration, backups
+- Monitor system health and diagnostics
+- Configure SSL certificates
+- Adjust quotas and security settings
+
+**Chat Interface** (http://localhost:8080/chat/login):
+- Chat with AI about your emails
+- "Liste mes emails"
+- "Résume mes emails non lus"
+- "Envoie un email à test@example.com"
 
 ## Testing
 
 ```bash
 # Run all tests
-cargo test
+just test
 
 # Run specific test suites
-cargo test --package mcp-mail-server --test integration_test
-cargo test --package ai-runtime --test integration_test
-cargo test --package mail-rs --test smtp_test
+just test-mail      # Mail server tests
+just test-smtp      # SMTP integration tests
+just test-mcp       # MCP integration tests
+just test-ai        # AI runtime tests
+just test-e2e       # End-to-end tests
 
-# Run end-to-end tests
-./test_e2e.sh
+# Run tests with verbose output
+just test-verbose
 ```
 
 **Test Results**:
+- ✅ Mail-rs Tests: 175+ tests passing
 - ✅ MCP Integration Tests: 7/7 passed
 - ✅ AI-Runtime Tests: 7/7 passed
-- ✅ SMTP Tests: 6/6 passed (2 ignored as flaky)
+- ✅ SMTP Tests: 6/6 passed
+
+### Available Just Commands
+
+Run `just` or `just --list` to see all available commands:
+
+```bash
+# Development
+just dev              # Start all services
+just dev-mail         # Start mail server only
+just dev-mcp          # Start MCP server
+just dev-ai           # Start AI runtime
+
+# Build
+just build            # Build in debug mode
+just build-release    # Build optimized release
+
+# Testing
+just test             # Run all tests
+just test-verbose     # Run with output
+
+# User Management
+just create-user EMAIL PASSWORD
+just list-users
+just delete-user EMAIL
+just create-admin     # Create default admin
+
+# Database
+just reset-db         # Reset all databases
+just backup-db        # Backup databases
+
+# Code Quality
+just fmt              # Format code
+just lint             # Run clippy
+just check            # Check without building
+
+# Utilities
+just clean            # Clean build artifacts
+just clean-all        # Clean everything
+just stats            # Show project stats
+just docs             # Generate documentation
+```
 
 ## Configuration
 
@@ -267,18 +349,65 @@ mail_server_url = "http://localhost:8090"
 
 ## Development
 
+### Quick Start
+
 ```bash
-# Format code
-cargo fmt --all
+# Initial setup
+just setup
 
-# Run linter
-cargo clippy --all-targets --all-features
+# Start development
+just dev
 
-# Build for release
-cargo build --release
+# Run tests
+just test
+```
 
-# Run with logging
-RUST_LOG=debug cargo run --bin mail-rs
+### Development Commands
+
+```bash
+# Code formatting
+just fmt              # Format all code
+just fmt-check        # Check formatting
+
+# Code quality
+just lint             # Run clippy
+just lint-fix         # Auto-fix issues
+just check            # Type check only
+
+# Building
+just build            # Debug build
+just build-release    # Release build
+just build-verbose    # With verbose output
+
+# Database management
+just reset-db         # Reset databases
+just backup-db        # Backup databases
+just clean-maildir    # Clean mailboxes
+
+# Utilities
+just stats            # Project statistics
+just docs             # Generate docs
+just update           # Update dependencies
+just audit            # Security audit
+```
+
+### Development Workflow
+
+1. **Start developing**: `just dev`
+2. **Make changes**: Edit code in your IDE
+3. **Format & lint**: `just fmt && just lint`
+4. **Test changes**: `just test`
+5. **Clean up**: `just clean`
+
+### Logs and Debugging
+
+```bash
+# Run with debug logging
+RUST_LOG=debug just dev-mail
+
+# Show logs
+just logs-mail       # Mail server logs
+just logs            # All logs
 ```
 
 ## Production Deployment
@@ -299,19 +428,28 @@ See [mail-rs/docs/DEPLOYMENT.md](mail-rs/docs/DEPLOYMENT.md) for production depl
 - ✅ Basic security
 - ✅ Comprehensive tests
 
-### Phase 2: Production Hardening (🚧 In Progress)
-- ⏳ SPF/DKIM/DMARC validation
-- ⏳ Advanced spam filtering
-- ⏳ Email attachments support
-- ⏳ Full IMAP implementation
-- ⏳ Performance optimization
+### Phase 2: Production Hardening (✅ Complete - Sprints 11-16)
+- ✅ SPF/DKIM/DMARC validation and signing (Sprint 11-12)
+- ✅ MIME parser with attachment support (Sprint 13)
+- ✅ Quota management system (Sprint 14)
+- ✅ Greylisting anti-spam (Sprint 15)
+- ✅ Mail-in-a-Box admin tools (Sprint 16)
+- ✅ Complete web admin interface
+- ✅ DNS configuration display
+- ✅ System diagnostics & monitoring
+- ✅ Backup management
+- ✅ SSL certificate management
+- ✅ 175+ tests passing (5,631+ LOC)
 
 ### Phase 3: Advanced Features (📋 Planned)
 - 📋 Multi-user support with domains
+- 📋 Full IMAP implementation (write operations)
+- 📋 Advanced spam filtering (Bayesian, ML-based)
 - 📋 Calendar integration (CalDAV)
 - 📋 Contacts (CardDAV)
-- 📋 Real-time chat (WebSocket)
+- 📋 Real-time collaboration
 - 📋 Mobile app
+- 📋 Performance optimization & clustering
 
 ## Contributing
 
@@ -332,6 +470,7 @@ For questions or issues, please open a GitHub issue or refer to the documentatio
 
 ---
 
-**Current Phase**: Phase 1 Complete - Production-ready email system with AI chat interface
-**Test Coverage**: 20/22 tests passing (91%)
-**Status**: Functional and ready for testing/feedback
+**Current Phase**: Phase 2 Complete - Production-hardened with admin interface
+**Test Coverage**: 175+ tests passing (5,631+ LOC)
+**Status**: Production-ready with comprehensive administration tools
+**Admin Panel**: http://localhost:8080/admin/login

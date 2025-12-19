@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}DNS Configuration - GK Mail Admin{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <h1 class="text-xl font-bold text-gray-900 dark:text-white">
+                        GK Mail Admin
+                    </h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">{{ email }}</span>
+                    <a href="/admin/logout" class="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium">
+                        🚪 Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white dark:bg-gray-800 min-h-[calc(100vh-4rem)] border-r border-gray-200 dark:border-gray-700">
+            <nav class="p-4 space-y-2">
+                <a href="/admin/dashboard"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">📊</span>
+                    <span class="font-medium">Dashboard</span>
+                </a>
+                <a href="/admin/users"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">👥</span>
+                    <span class="font-medium">Users</span>
+                </a>
+                <a href="/admin/dns"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+                    <span class="text-xl">🌐</span>
+                    <span class="font-medium">DNS Config</span>
+                </a>
+                <a href="/admin/diagnostics"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔍</span>
+                    <span class="font-medium">Diagnostics</span>
+                </a>
+                <a href="/admin/backups"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">💾</span>
+                    <span class="font-medium">Backups</span>
+                </a>
+                <a href="/admin/ssl"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔒</span>
+                    <span class="font-medium">SSL Certificates</span>
+                </a>
+                <a href="/admin/settings"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">⚙️</span>
+                    <span class="font-medium">Settings</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-8">
+            <div class="max-w-7xl mx-auto space-y-6">
+                <!-- Header -->
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">DNS Configuration</h1>
+                    <p class="text-gray-600 dark:text-gray-400 mt-1">Required DNS records for your mail server</p>
+                </div>
+
+                <!-- Server Info Card -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Server Information</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="server-info">
+                        <div class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Domain</p>
+                            <p class="text-lg font-medium text-gray-900 dark:text-white" id="domain">Loading...</p>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Hostname</p>
+                            <p class="text-lg font-medium text-gray-900 dark:text-white" id="hostname">Loading...</p>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                            <p class="text-sm text-gray-600 dark:text-gray-400">IP Address</p>
+                            <p class="text-lg font-medium text-gray-900 dark:text-white" id="ip">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DNS Records -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold text-gray-900 dark:text-white">DNS Records</h2>
+                        <button onclick="copyAllRecords()"
+                                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+                            📋 Copy All
+                        </button>
+                    </div>
+                    <div class="space-y-4" id="dns-records">
+                        <p class="text-gray-600 dark:text-gray-400">Loading DNS records...</p>
+                    </div>
+                </div>
+
+                <!-- Setup Instructions -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Setup Instructions</h2>
+                    <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 mb-4">
+                        <p class="text-sm text-blue-700 dark:text-blue-300">
+                            <strong>Important:</strong> DNS changes may take up to 48 hours to propagate globally.
+                        </p>
+                    </div>
+                    <pre id="instructions" class="bg-gray-100 dark:bg-gray-900 p-4 rounded-lg overflow-x-auto text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+Loading instructions...
+                    </pre>
+                </div>
+
+                <!-- Verification Tools -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Verification Tools</h2>
+                    <div class="space-y-3">
+                        <a href="https://mxtoolbox.com/" target="_blank"
+                           class="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-500 dark:hover:border-blue-500 transition-colors">
+                            <div>
+                                <div class="font-medium text-gray-900 dark:text-white">MX Toolbox</div>
+                                <div class="text-sm text-gray-600 dark:text-gray-400">Check your MX, SPF, DKIM, and DMARC records</div>
+                            </div>
+                            <span class="text-gray-400">→</span>
+                        </a>
+                        <a href="https://dnschecker.org/" target="_blank"
+                           class="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-500 dark:hover:border-blue-500 transition-colors">
+                            <div>
+                                <div class="font-medium text-gray-900 dark:text-white">DNS Checker</div>
+                                <div class="text-sm text-gray-600 dark:text-gray-400">Verify DNS propagation worldwide</div>
+                            </div>
+                            <span class="text-gray-400">→</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+async function loadDnsConfig() {
+    try {
+        const response = await fetch('/api/admin/dns');
+        const data = await response.json();
+
+        // Update server info
+        document.getElementById('domain').textContent = data.domain;
+        document.getElementById('hostname').textContent = data.hostname;
+        document.getElementById('ip').textContent = data.ip;
+
+        // Update DNS records
+        const recordsContainer = document.getElementById('dns-records');
+        recordsContainer.innerHTML = data.records.map(record => {
+            const recordText = record.priority
+                ? `${record.name} ${record.ttl} IN ${record.record_type} ${record.priority} ${record.value}`
+                : `${record.name} ${record.ttl} IN ${record.record_type} ${record.value}`;
+
+            return `
+                <div class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                    <div class="flex items-start justify-between mb-2">
+                        <div>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+                                ${record.record_type}
+                            </span>
+                            <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">${record.description}</span>
+                        </div>
+                        <button onclick="copyToClipboard('${recordText.replace(/'/g, "\\'")}', this)"
+                                class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">
+                            📋 Copy
+                        </button>
+                    </div>
+                    <div class="space-y-1 text-sm">
+                        <div class="flex">
+                            <span class="text-gray-600 dark:text-gray-400 w-24">Name:</span>
+                            <span class="text-gray-900 dark:text-white font-mono">${record.name}</span>
+                        </div>
+                        <div class="flex">
+                            <span class="text-gray-600 dark:text-gray-400 w-24">Value:</span>
+                            <span class="text-gray-900 dark:text-white font-mono break-all">${record.value}</span>
+                        </div>
+                        ${record.priority ? `
+                        <div class="flex">
+                            <span class="text-gray-600 dark:text-gray-400 w-24">Priority:</span>
+                            <span class="text-gray-900 dark:text-white font-mono">${record.priority}</span>
+                        </div>
+                        ` : ''}
+                        <div class="flex">
+                            <span class="text-gray-600 dark:text-gray-400 w-24">TTL:</span>
+                            <span class="text-gray-900 dark:text-white font-mono">${record.ttl} seconds</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Update instructions
+        document.getElementById('instructions').textContent = data.instructions;
+
+    } catch (error) {
+        console.error('Failed to load DNS config:', error);
+        document.getElementById('dns-records').innerHTML =
+            '<p class="text-red-500">Failed to load DNS configuration. Please try again.</p>';
+    }
+}
+
+function copyToClipboard(text, button) {
+    navigator.clipboard.writeText(text).then(() => {
+        const originalText = button.textContent;
+        button.textContent = '✓ Copied';
+        setTimeout(() => {
+            button.textContent = originalText;
+        }, 2000);
+    });
+}
+
+function copyAllRecords() {
+    fetch('/api/admin/dns')
+        .then(r => r.json())
+        .then(data => {
+            const allRecords = data.records.map(record => {
+                if (record.priority) {
+                    return `${record.name}\t${record.ttl}\tIN\t${record.record_type}\t${record.priority} ${record.value}`;
+                } else {
+                    return `${record.name}\t${record.ttl}\tIN\t${record.record_type}\t${record.value}`;
+                }
+            }).join('\n');
+
+            navigator.clipboard.writeText(allRecords).then(() => {
+                alert('All DNS records copied to clipboard!');
+            });
+        });
+}
+
+// Load DNS config on page load
+document.addEventListener('DOMContentLoaded', loadDnsConfig);
+</script>
+{% endblock %}

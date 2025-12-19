@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+
+{% block title %}Backup Management - GK Mail Admin{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <h1 class="text-xl font-bold text-gray-900 dark:text-white">
+                        GK Mail Admin
+                    </h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">{{ email }}</span>
+                    <a href="/admin/logout" class="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium">
+                        🚪 Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white dark:bg-gray-800 min-h-[calc(100vh-4rem)] border-r border-gray-200 dark:border-gray-700">
+            <nav class="p-4 space-y-2">
+                <a href="/admin/dashboard"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">📊</span>
+                    <span class="font-medium">Dashboard</span>
+                </a>
+                <a href="/admin/users"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">👥</span>
+                    <span class="font-medium">Users</span>
+                </a>
+                <a href="/admin/dns"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🌐</span>
+                    <span class="font-medium">DNS Config</span>
+                </a>
+                <a href="/admin/diagnostics"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔍</span>
+                    <span class="font-medium">Diagnostics</span>
+                </a>
+                <a href="/admin/backups"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+                    <span class="text-xl">💾</span>
+                    <span class="font-medium">Backups</span>
+                </a>
+                <a href="/admin/ssl"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔒</span>
+                    <span class="font-medium">SSL Certificates</span>
+                </a>
+                <a href="/admin/settings"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">⚙️</span>
+                    <span class="font-medium">Settings</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-8">
+            <div class="max-w-7xl mx-auto space-y-6">
+                <!-- Header -->
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Backup Management</h1>
+                        <p class="text-gray-600 dark:text-gray-400 mt-1">Create and manage mailbox backups</p>
+                    </div>
+                    <button onclick="createBackup()"
+                            id="create-backup-btn"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                        ➕ Create Backup
+                    </button>
+                </div>
+
+                <!-- Storage Info -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-900 dark:text-white">Storage Usage</h2>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Total backup storage</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-3xl font-bold text-blue-600 dark:text-blue-400" id="total-size">0 MB</p>
+                            <p class="text-sm text-gray-600 dark:text-gray-400" id="backup-count">0 backups</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Backups List -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                        <h2 class="text-xl font-bold text-gray-900 dark:text-white">Available Backups</h2>
+                    </div>
+                    <div class="p-6">
+                        <div id="backups-list" class="space-y-3">
+                            <p class="text-gray-600 dark:text-gray-400">Loading backups...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Backup Policy -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Backup Policy</h2>
+                    <div class="space-y-3 text-sm text-gray-600 dark:text-gray-400">
+                        <div class="flex items-start">
+                            <span class="text-blue-600 dark:text-blue-400 mr-2">•</span>
+                            <span>Backups are automatically compressed using gzip</span>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="text-blue-600 dark:text-blue-400 mr-2">•</span>
+                            <span>A maximum of 7 backups are kept (oldest are automatically deleted)</span>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="text-blue-600 dark:text-blue-400 mr-2">•</span>
+                            <span>Backups include all user mailboxes and configurations</span>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="text-blue-600 dark:text-blue-400 mr-2">•</span>
+                            <span>Backup location: /var/backups/mail-rs/</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+async function loadBackups() {
+    try {
+        const response = await fetch('/api/admin/backups');
+        const data = await response.json();
+
+        // Update storage info
+        const totalSizeMB = (data.total_size / (1024 * 1024)).toFixed(2);
+        document.getElementById('total-size').textContent = totalSizeMB + ' MB';
+        document.getElementById('backup-count').textContent = data.backups.length + ' backups';
+
+        // Update backups list
+        const listContainer = document.getElementById('backups-list');
+        if (data.backups.length === 0) {
+            listContainer.innerHTML = '<p class="text-gray-600 dark:text-gray-400 text-center py-8">No backups found. Create your first backup!</p>';
+        } else {
+            listContainer.innerHTML = data.backups.map(backup => {
+                const sizeMB = (backup.size_bytes / (1024 * 1024)).toFixed(2);
+                const date = new Date(backup.created_at);
+                const dateStr = date.toLocaleString();
+
+                const statusColors = {
+                    'Success': 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
+                    'Failed': 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
+                    'In Progress': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                };
+
+                return `
+                    <div class="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-500 dark:hover:border-blue-500 transition-colors">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-2xl">💾</span>
+                                <div>
+                                    <div class="font-medium text-gray-900 dark:text-white">${backup.filename}</div>
+                                    <div class="text-sm text-gray-600 dark:text-gray-400">
+                                        Created: ${dateStr} • Size: ${sizeMB} MB
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[backup.status] || 'bg-gray-100 text-gray-800'}">
+                                ${backup.status}
+                            </span>
+                            <button onclick="restoreBackup('${backup.filename}')"
+                                    class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                                🔄 Restore
+                            </button>
+                            <button onclick="deleteBackup('${backup.filename}')"
+                                    class="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
+                                🗑️ Delete
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+    } catch (error) {
+        console.error('Failed to load backups:', error);
+        document.getElementById('backups-list').innerHTML =
+            '<p class="text-red-500 text-center py-8">Failed to load backups. Please try again.</p>';
+    }
+}
+
+async function createBackup() {
+    const btn = document.getElementById('create-backup-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Creating...';
+
+    try {
+        const response = await fetch('/api/admin/backups', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({})
+        });
+
+        if (response.ok) {
+            alert('Backup created successfully!');
+            await loadBackups();
+        } else {
+            const error = await response.json();
+            alert('Failed to create backup: ' + error.error);
+        }
+    } catch (error) {
+        console.error('Failed to create backup:', error);
+        alert('Failed to create backup: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '➕ Create Backup';
+    }
+}
+
+async function restoreBackup(filename) {
+    if (!confirm(`Are you sure you want to restore from "${filename}"?\n\nThis will replace current mailbox data!`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/admin/backups/${filename}/restore`, {
+            method: 'POST'
+        });
+
+        if (response.ok) {
+            alert('Backup restored successfully!');
+        } else {
+            const error = await response.json();
+            alert('Failed to restore backup: ' + error.error);
+        }
+    } catch (error) {
+        console.error('Failed to restore backup:', error);
+        alert('Failed to restore backup: ' + error.message);
+    }
+}
+
+async function deleteBackup(filename) {
+    if (!confirm(`Are you sure you want to delete "${filename}"?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/admin/backups/${filename}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok || response.status === 204) {
+            alert('Backup deleted successfully!');
+            await loadBackups();
+        } else {
+            const error = await response.json();
+            alert('Failed to delete backup: ' + error.error);
+        }
+    } catch (error) {
+        console.error('Failed to delete backup:', error);
+        alert('Failed to delete backup: ' + error.message);
+    }
+}
+
+// Load backups on page load
+document.addEventListener('DOMContentLoaded', loadBackups);
+</script>
+{% endblock %}

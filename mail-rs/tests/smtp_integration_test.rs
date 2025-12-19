@@ -23,10 +23,20 @@ async fn start_test_server() -> SocketAddr {
     tokio::spawn(async move {
         loop {
             if let Ok((socket, _)) = listener.accept().await {
+                let auth_config = mail_rs::config::AuthenticationConfig {
+                    spf_enabled: false,
+                    spf_reject_on_fail: false,
+                    dkim_enabled: false,
+                    dkim_domain: "".to_string(),
+                    dkim_selector: "".to_string(),
+                    dkim_private_key_path: "".to_string(),
+                    dkim_validate_incoming: false,
+                };
                 let session = mail_rs::smtp::SmtpSession::new(
                     "test.localhost".to_string(),
                     Arc::new(mail_rs::storage::MaildirStorage::new("/tmp/test-maildir".to_string())),
                     10 * 1024 * 1024,
+                    auth_config,
                 );
                 tokio::spawn(async move {
                     let _ = session.handle(socket).await;

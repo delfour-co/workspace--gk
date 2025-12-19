@@ -309,3 +309,105 @@ pub async fn chat_app(
 
     ChatAppTemplate { email }.into_response()
 }
+
+// ========== ADMIN PAGES ==========
+
+#[derive(Template)]
+#[template(path = "dns.html")]
+struct DnsTemplate {
+    email: String,
+}
+
+#[derive(Template)]
+#[template(path = "diagnostics.html")]
+struct DiagnosticsTemplate {
+    email: String,
+}
+
+#[derive(Template)]
+#[template(path = "backups.html")]
+struct BackupsTemplate {
+    email: String,
+}
+
+#[derive(Template)]
+#[template(path = "ssl.html")]
+struct SslTemplate {
+    email: String,
+}
+
+#[derive(Template)]
+#[template(path = "settings.html")]
+struct SettingsTemplate {
+    email: String,
+    version: String,
+    total_users: i64,
+}
+
+// DNS configuration page
+pub async fn dns_page(
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let email = match get_session_email(&headers) {
+        Some(e) => e,
+        None => return Redirect::to("/admin/login").into_response(),
+    };
+
+    DnsTemplate { email }.into_response()
+}
+
+// System diagnostics page
+pub async fn diagnostics_page(
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let email = match get_session_email(&headers) {
+        Some(e) => e,
+        None => return Redirect::to("/admin/login").into_response(),
+    };
+
+    DiagnosticsTemplate { email }.into_response()
+}
+
+// Backups management page
+pub async fn backups_page(
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let email = match get_session_email(&headers) {
+        Some(e) => e,
+        None => return Redirect::to("/admin/login").into_response(),
+    };
+
+    BackupsTemplate { email }.into_response()
+}
+
+// SSL certificates page
+pub async fn ssl_page(
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let email = match get_session_email(&headers) {
+        Some(e) => e,
+        None => return Redirect::to("/admin/login").into_response(),
+    };
+
+    SslTemplate { email }.into_response()
+}
+
+// Settings page
+pub async fn settings_page(
+    State(state): State<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let email = match get_session_email(&headers) {
+        Some(e) => e,
+        None => return Redirect::to("/admin/login").into_response(),
+    };
+
+    // Get user count and version
+    let total_users = state.authenticator.count_users().await.unwrap_or(0);
+
+    SettingsTemplate {
+        email,
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        total_users,
+    }.into_response()
+}

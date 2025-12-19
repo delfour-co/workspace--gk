@@ -133,6 +133,15 @@ impl ApiServer {
             .route("/users/:id", delete(admin::delete_user))
             .route("/stats", get(admin::get_system_stats))
             .route("/config", get(admin::get_config))
+            .route("/dns", get(admin::get_dns_config))
+            .route("/diagnostics", get(admin::get_diagnostics))
+            .route("/backups", get(admin::list_backups))
+            .route("/backups", post(admin::create_backup))
+            .route("/backups/:filename", delete(admin::delete_backup))
+            .route("/backups/:filename/restore", post(admin::restore_backup))
+            .route("/ssl", get(admin::get_ssl_status))
+            .route("/ssl/request", post(admin::request_ssl_certificate))
+            .route("/ssl/renew", post(admin::renew_ssl_certificate))
             .route_layer(middleware::from_fn_with_state(
                 self.state.clone(),
                 auth_middleware,
@@ -151,6 +160,11 @@ impl ApiServer {
             .route("/admin/users", get(web::users_page))
             .route("/admin/users", post(web::create_user))
             .route("/admin/users/:id", delete(web::delete_user))
+            .route("/admin/dns", get(web::dns_page))
+            .route("/admin/diagnostics", get(web::diagnostics_page))
+            .route("/admin/backups", get(web::backups_page))
+            .route("/admin/ssl", get(web::ssl_page))
+            .route("/admin/settings", get(web::settings_page))
             .with_state(web_state.clone());
 
         // Chat routes (user-facing chatbot interface)

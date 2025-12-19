@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}System Diagnostics - GK Mail Admin{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <h1 class="text-xl font-bold text-gray-900 dark:text-white">
+                        GK Mail Admin
+                    </h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">{{ email }}</span>
+                    <a href="/admin/logout" class="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium">
+                        🚪 Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white dark:bg-gray-800 min-h-[calc(100vh-4rem)] border-r border-gray-200 dark:border-gray-700">
+            <nav class="p-4 space-y-2">
+                <a href="/admin/dashboard"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">📊</span>
+                    <span class="font-medium">Dashboard</span>
+                </a>
+                <a href="/admin/users"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">👥</span>
+                    <span class="font-medium">Users</span>
+                </a>
+                <a href="/admin/dns"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🌐</span>
+                    <span class="font-medium">DNS Config</span>
+                </a>
+                <a href="/admin/diagnostics"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+                    <span class="text-xl">🔍</span>
+                    <span class="font-medium">Diagnostics</span>
+                </a>
+                <a href="/admin/backups"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">💾</span>
+                    <span class="font-medium">Backups</span>
+                </a>
+                <a href="/admin/ssl"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔒</span>
+                    <span class="font-medium">SSL Certificates</span>
+                </a>
+                <a href="/admin/settings"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">⚙️</span>
+                    <span class="font-medium">Settings</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-8">
+            <div class="max-w-7xl mx-auto space-y-6">
+                <!-- Header -->
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">System Diagnostics</h1>
+                        <p class="text-gray-600 dark:text-gray-400 mt-1">Monitor system health and performance</p>
+                    </div>
+                    <button onclick="runDiagnostics()"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                        🔄 Refresh
+                    </button>
+                </div>
+
+                <!-- Overall Status Card -->
+                <div id="overall-status" class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-xl font-bold text-gray-900 dark:text-white">Overall Health</h2>
+                        <span id="status-badge" class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium">
+                            Loading...
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Diagnostic Checks -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="diagnostic-checks">
+                    <!-- Checks will be loaded here via JavaScript -->
+                </div>
+
+                <!-- Detailed Report -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Detailed Report</h2>
+                    <pre id="diagnostic-report" class="bg-gray-100 dark:bg-gray-900 p-4 rounded-lg overflow-x-auto text-sm text-gray-800 dark:text-gray-200 font-mono">
+Loading diagnostics...
+                    </pre>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+async function runDiagnostics() {
+    const statusBadge = document.getElementById('status-badge');
+    const checksContainer = document.getElementById('diagnostic-checks');
+    const reportPre = document.getElementById('diagnostic-report');
+
+    // Show loading state
+    statusBadge.textContent = 'Running checks...';
+    statusBadge.className = 'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
+    checksContainer.innerHTML = '<div class="col-span-2 text-center text-gray-500 dark:text-gray-400">Running diagnostics...</div>';
+
+    try {
+        const response = await fetch('/api/admin/diagnostics');
+        const data = await response.json();
+
+        // Update overall status
+        const statusColors = {
+            'Healthy': 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
+            'Warning': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
+            'Critical': 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
+            'Down': 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+        };
+        statusBadge.textContent = data.overall_status;
+        statusBadge.className = `inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusColors[data.overall_status] || 'bg-gray-100 text-gray-800'}`;
+
+        // Update checks
+        checksContainer.innerHTML = data.checks.map(check => {
+            const checkStatusColors = {
+                'Healthy': 'bg-green-500',
+                'Warning': 'bg-yellow-500',
+                'Critical': 'bg-red-500',
+                'Down': 'bg-red-600'
+            };
+            const checkTextColors = {
+                'Healthy': 'text-green-600 dark:text-green-400',
+                'Warning': 'text-yellow-600 dark:text-yellow-400',
+                'Critical': 'text-red-600 dark:text-red-400',
+                'Down': 'text-red-600 dark:text-red-400'
+            };
+
+            return `
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-12 h-12 ${checkStatusColors[check.status] || 'bg-gray-500'} rounded-lg flex items-center justify-center text-white text-2xl">
+                                ${check.status === 'Healthy' ? '✓' : check.status === 'Warning' ? '⚠' : '✗'}
+                            </div>
+                        </div>
+                        <div class="ml-4 flex-1">
+                            <h3 class="text-sm font-medium text-gray-600 dark:text-gray-400">${check.name}</h3>
+                            <p class="text-lg font-bold ${checkTextColors[check.status] || 'text-gray-900 dark:text-white'}">${check.status}</p>
+                            ${check.value ? `<p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${check.value}</p>` : ''}
+                        </div>
+                    </div>
+                    <p class="mt-3 text-sm text-gray-600 dark:text-gray-400">${check.message}</p>
+                </div>
+            `;
+        }).join('');
+
+        // Update detailed report
+        reportPre.textContent = data.report;
+
+    } catch (error) {
+        console.error('Failed to run diagnostics:', error);
+        statusBadge.textContent = 'Error';
+        statusBadge.className = 'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
+        checksContainer.innerHTML = '<div class="col-span-2 text-center text-red-500">Failed to load diagnostics. Please try again.</div>';
+        reportPre.textContent = 'Error: ' + error.message;
+    }
+}
+
+// Run diagnostics on page load
+document.addEventListener('DOMContentLoaded', runDiagnostics);
+</script>
+{% endblock %}
