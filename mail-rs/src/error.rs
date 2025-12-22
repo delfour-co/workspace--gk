@@ -31,6 +31,18 @@ pub enum MailError {
 
     #[error("TLS error: {0}")]
     Tls(String),
+
+    #[error("Resource not found: {0}")]
+    NotFound(String),
+
+    #[error("Unauthorized: {0}")]
+    Unauthorized(String),
+
+    #[error("Parse error: {0}")]
+    Parse(String),
+
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
 }
 
 pub type Result<T> = std::result::Result<T, MailError>;

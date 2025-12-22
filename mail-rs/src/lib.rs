@@ -60,6 +60,7 @@ pub mod quota;
 pub mod security;
 pub mod smtp;
 pub mod storage;
+pub mod templates;
 pub mod utils;
 
 // Re-export commonly used types
