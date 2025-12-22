@@ -441,15 +441,57 @@ See [mail-rs/docs/DEPLOYMENT.md](mail-rs/docs/DEPLOYMENT.md) for production depl
 - ✅ SSL certificate management
 - ✅ 175+ tests passing (5,631+ LOC)
 
-### Phase 3: Advanced Features (📋 Planned)
-- 📋 Multi-user support with domains
-- 📋 Full IMAP implementation (write operations)
-- 📋 Advanced spam filtering (Bayesian, ML-based)
-- 📋 Calendar integration (CalDAV)
-- 📋 Contacts (CardDAV)
-- 📋 Real-time collaboration
-- 📋 Mobile app
-- 📋 Performance optimization & clustering
+### Phase 3: Extensions & New Features (🚀 In Planning)
+
+See [ROADMAP.md](./ROADMAP.md) for complete roadmap with all planned features.
+
+#### 🔴 Short Term (1-3 months)
+
+**Security Features** ⭐
+- **Blockchain Proof of Email** - Infalsifiable timestamping via OpenTimestamps
+- **Human Lock Captcha** - Challenge-response for new senders (anti-spam)
+- **AI Link Scanner** - Automatic phishing/malware detection in links
+- **Security Dashboard** - Real-time security metrics + weekly reports
+
+**Productivity Essentials** ⭐
+- **Email Templates** - Signatures, quick replies, reusable templates
+- **Auto-Reply / Vacation** - Out-of-office automatic responder
+- **Email Scheduling** - Send emails at a specific date/time
+- **Email Threading** - Conversation view (like Gmail)
+
+**IMAP Complete**
+- IMAP write operations (STORE, DELETE, EXPUNGE, COPY)
+- IMAP IDLE (push notifications)
+- Full-text search (Tantivy integration)
+
+#### 🟡 Medium Term (3-6 months)
+
+**chat-rs - Real-Time Messaging**
+- WebSocket real-time chat
+- 1-to-1 and group chats
+- Message threading and reactions
+- Bridges (WhatsApp, Slack, Google Chat)
+
+**dav-rs - Calendar & Contacts**
+- CalDAV server (calendars)
+- CardDAV server (contacts)
+- Multi-device sync (iOS, Android, desktop)
+- Event invitations and recurring events
+
+**Multi-User & Domains**
+- Virtual domains (multi-domain support)
+- Email aliases and catch-all
+- Shared mailboxes (team@company.com)
+- Email forwarding
+
+#### 🟢 Long Term (6+ months)
+- Mobile & Desktop apps (iOS, Android, Tauri)
+- Advanced integrations (SSO, LDAP, Zapier)
+- Advanced AI (multi-model, RAG, voice)
+- Enterprise features (multi-tenant, white-label, billing)
+
+**Note**: Features marked ⭐ have detailed ready-to-use implementation prompts.
+See [`docs/FEATURES_PROMPTS.md`](./docs/FEATURES_PROMPTS.md) for technical specifications.
 
 ## Contributing
 
