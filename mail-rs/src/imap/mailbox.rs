@@ -65,7 +65,6 @@ impl Mailbox {
 
         // Read messages from both new/ and cur/ directories
         let mut messages = Vec::new();
-        let mut sequence = 1;
 
         // Read from new/ directory (unread messages)
         if new_path.exists() {
@@ -78,13 +77,12 @@ impl Mailbox {
                             let uid = entry.file_name().to_string_lossy().to_string();
 
                             messages.push(EmailMessage {
-                                sequence,
+                                sequence: 0, // Will be set after sorting
                                 uid,
                                 flags: vec![], // No flags for messages in new/
                                 content,
                                 size,
                             });
-                            sequence += 1;
                         }
                     }
                 }
@@ -105,17 +103,24 @@ impl Mailbox {
                             let flags = Self::parse_maildir_flags(&filename);
 
                             messages.push(EmailMessage {
-                                sequence,
+                                sequence: 0, // Will be set after sorting
                                 uid: filename.clone(),
                                 flags,
                                 content,
                                 size,
                             });
-                            sequence += 1;
                         }
                     }
                 }
             }
+        }
+
+        // Sort messages by UID for deterministic ordering
+        messages.sort_by(|a, b| a.uid.cmp(&b.uid));
+
+        // Assign sequence numbers (1-indexed)
+        for (idx, msg) in messages.iter_mut().enumerate() {
+            msg.sequence = idx + 1;
         }
 
         Ok(Mailbox {
@@ -368,6 +373,9 @@ impl Mailbox {
                     let idx = seq - 1; // Convert to 0-indexed
                     let msg = &mut self.messages[idx];
 
+                    // Store old flags for comparison
+                    let old_flags = msg.flags.clone();
+
                     match operation {
                         StoreOperation::Add => {
                             // Add flags that don't already exist
@@ -387,12 +395,96 @@ impl Mailbox {
                         }
                     }
 
+                    // Persist flag changes to disk by renaming the file
+                    if msg.flags != old_flags {
+                        self.persist_message_flags(idx)?;
+                    }
+
                     modified_sequences.push(seq);
                 }
             }
         }
 
         Ok(modified_sequences)
+    }
+
+    /// Persist message flags to disk by renaming the maildir file
+    fn persist_message_flags(&mut self, idx: usize) -> Result<(), MailError> {
+        if idx >= self.messages.len() {
+            return Ok(());
+        }
+
+        // Get the current UID (which might already have the old flags)
+        let old_uid = self.messages[idx].uid.clone();
+        let msg_flags = self.messages[idx].flags.clone();
+
+        // Build new filename with updated flags
+        let new_filename = self.build_maildir_filename_with_flags(&old_uid, &msg_flags);
+
+        // If filename hasn't changed, nothing to do
+        if old_uid == new_filename {
+            return Ok(());
+        }
+
+        // Determine current file path
+        // Files can be in new/ or cur/ directory
+        let new_path = self.path.join("new").join(&old_uid);
+        let cur_path = self.path.join("cur").join(&old_uid);
+
+        let current_file = if new_path.exists() {
+            new_path
+        } else if cur_path.exists() {
+            cur_path
+        } else {
+            // File doesn't exist, skip
+            return Ok(());
+        };
+
+        // Determine destination directory (always cur/ when flags are set)
+        let dest_dir = self.path.join("cur");
+        fs::create_dir_all(&dest_dir)?;
+
+        let dest_path = dest_dir.join(&new_filename);
+
+        // Rename the file to update flags
+        fs::rename(&current_file, &dest_path)?;
+
+        // Update the UID in our in-memory structure
+        self.messages[idx].uid = new_filename;
+
+        Ok(())
+    }
+
+    /// Build maildir filename with flags
+    /// Format: unique_id:2,FLAGS where FLAGS is sorted: DFPRS
+    fn build_maildir_filename_with_flags(&self, old_filename: &str, flags: &[String]) -> String {
+        // Extract base name (before :2,)
+        let base = if let Some(pos) = old_filename.find(":2,") {
+            &old_filename[..pos]
+        } else {
+            old_filename
+        };
+
+        // Convert IMAP flags to maildir flag characters
+        let mut flag_chars = Vec::new();
+        for flag in flags {
+            match flag.as_str() {
+                "\\Draft" => flag_chars.push('D'),
+                "\\Flagged" => flag_chars.push('F'),
+                "\\Answered" => flag_chars.push('R'),
+                "\\Seen" => flag_chars.push('S'),
+                "\\Deleted" => flag_chars.push('T'),
+                _ => {}
+            }
+        }
+
+        // Sort flags (maildir convention: alphabetical order)
+        flag_chars.sort_unstable();
+        flag_chars.dedup();
+
+        // Build filename with flags
+        let flag_str: String = flag_chars.into_iter().collect();
+        format!("{}:2,{}", base, flag_str)
     }
 
     /// Expunge messages marked with \Deleted flag
@@ -410,6 +502,17 @@ impl Mailbox {
             let msg = &self.messages[idx];
 
             if msg.flags.contains(&"\\Deleted".to_string()) {
+                // Delete the physical file from disk
+                let new_path = self.path.join("new").join(&msg.uid);
+                let cur_path = self.path.join("cur").join(&msg.uid);
+
+                // Try both new/ and cur/ directories
+                if new_path.exists() {
+                    fs::remove_file(&new_path)?;
+                } else if cur_path.exists() {
+                    fs::remove_file(&cur_path)?;
+                }
+
                 expunged_sequences.push(msg.sequence);
                 self.messages.remove(idx);
             }
@@ -446,11 +549,11 @@ impl Mailbox {
             user_maildir.join(format!(".{}", destination))
         };
 
-        // Ensure destination new/ directory exists
+        // Ensure destination directories exist
         let dest_new = dest_path.join("new");
-        if !dest_new.exists() {
-            fs::create_dir_all(&dest_new)?;
-        }
+        let dest_cur = dest_path.join("cur");
+        fs::create_dir_all(&dest_new)?;
+        fs::create_dir_all(&dest_cur)?;
 
         let mut copied_count = 0;
 
@@ -488,8 +591,23 @@ impl Mailbox {
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap_or_default()
                         .as_micros();
-                    let filename = format!("{}.{}.copy", timestamp, seq);
-                    let dest_file = dest_new.join(&filename);
+
+                    // Build filename with flags preserved
+                    let base_filename = format!("{}.{}.copy", timestamp, seq);
+                    let filename = if msg.flags.is_empty() {
+                        // No flags - copy to new/
+                        base_filename
+                    } else {
+                        // Has flags - build maildir filename with flags
+                        self.build_maildir_filename_with_flags(&base_filename, &msg.flags)
+                    };
+
+                    // Determine destination directory based on flags
+                    let dest_file = if msg.flags.is_empty() {
+                        dest_new.join(&filename)
+                    } else {
+                        dest_cur.join(&filename)
+                    };
 
                     // Write message content to destination
                     fs::write(&dest_file, &msg.content)?;

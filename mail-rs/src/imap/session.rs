@@ -3,9 +3,10 @@
 //! Handles IMAP protocol state machine and command execution
 
 use crate::error::MailError;
-use crate::imap::{ImapCommand, Mailbox, SearchCriteria, StoreOperation};
+use crate::imap::{IdleWatcher, ImapCommand, Mailbox, SearchCriteria, StoreOperation};
 use crate::security::Authenticator;
 use std::path::Path;
+use std::time::Duration;
 use tracing::{debug, info};
 
 /// IMAP session states
@@ -395,6 +396,9 @@ impl ImapSession {
     ///
     /// Puts the session in IDLE mode and returns a continuation response.
     /// The client should send DONE to exit IDLE mode.
+    ///
+    /// Note: This is a synchronous stub. In a real async IMAP server,
+    /// IDLE would be handled in the connection loop with proper async/await.
     fn handle_idle(&mut self, tag: String) -> Result<String, MailError> {
         debug!("Entering IDLE mode");
 
@@ -402,8 +406,8 @@ impl ImapSession {
         self.idle_tag = Some(tag);
 
         // Return continuation response
-        // Note: In a real implementation, we would start monitoring for
-        // new messages and send EXISTS/RECENT notifications
+        // The actual filesystem watching and notifications are handled
+        // in the IMAP server connection loop using IdleWatcher
         Ok("+ idling\r\n".to_string())
     }
 

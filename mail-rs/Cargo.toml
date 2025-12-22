@@ -58,6 +58,9 @@ rand = "0.8"
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 
+# Filesystem watching (for IMAP IDLE)
+notify = "6.1"
+
 # Utils
 uuid = { workspace = true }
 chrono = { workspace = true }
