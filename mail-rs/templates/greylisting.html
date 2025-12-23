@@ -1,0 +1,627 @@
+{% extends "base.html" %}
+
+{% block title %}Greylisting - GK Mail Admin{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <h1 class="text-xl font-bold text-gray-900 dark:text-white">
+                        GK Mail Admin
+                    </h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">{{ email }}</span>
+                    <a href="/admin/logout" class="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium">
+                        🚪 Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white dark:bg-gray-800 min-h-[calc(100vh-4rem)] border-r border-gray-200 dark:border-gray-700">
+            <nav class="p-4 space-y-2">
+                <a href="/admin/dashboard"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">📊</span>
+                    <span class="font-medium">Dashboard</span>
+                </a>
+                <a href="/admin/users"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">👥</span>
+                    <span class="font-medium">Users</span>
+                </a>
+                <a href="/admin/templates"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">📝</span>
+                    <span class="font-medium">Email Templates</span>
+                </a>
+                <a href="/admin/auto-reply"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔄</span>
+                    <span class="font-medium">Auto-Reply</span>
+                </a>
+                <a href="/chat/app"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">💬</span>
+                    <span class="font-medium">Email Chat</span>
+                </a>
+                <a href="/admin/security"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🛡️</span>
+                    <span class="font-medium">Security</span>
+                </a>
+                <a href="/admin/greylisting"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+                    <span class="text-xl">🚦</span>
+                    <span class="font-medium">Greylisting</span>
+                </a>
+                <a href="/admin/quotas"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">📊</span>
+                    <span class="font-medium">Quotas</span>
+                </a>
+                <a href="/admin/dns"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🌐</span>
+                    <span class="font-medium">DNS Config</span>
+                </a>
+                <a href="/admin/diagnostics"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔍</span>
+                    <span class="font-medium">Diagnostics</span>
+                </a>
+                <a href="/admin/monitoring"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">📈</span>
+                    <span class="font-medium">Monitoring</span>
+                </a>
+                <a href="/admin/backups"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">💾</span>
+                    <span class="font-medium">Backups</span>
+                </a>
+                <a href="/admin/ssl"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔒</span>
+                    <span class="font-medium">SSL Certificates</span>
+                </a>
+                <a href="/admin/settings"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">⚙️</span>
+                    <span class="font-medium">Settings</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-8">
+            <div class="max-w-7xl mx-auto space-y-6">
+                <!-- Header -->
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Greylisting Anti-Spam</h1>
+                        <p class="text-gray-600 dark:text-gray-400 mt-1">Manage greylist, whitelist, and blacklist</p>
+                    </div>
+                    <button onclick="cleanupOldEntries()"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                        🧹 Cleanup Old Entries
+                    </button>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-yellow-500 rounded-lg flex items-center justify-center text-2xl">
+                                    🚦
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-sm font-medium text-gray-600 dark:text-gray-400">Greylisted</h3>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white" id="greylist-count">0</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center text-2xl">
+                                    ✓
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-sm font-medium text-gray-600 dark:text-gray-400">Whitelisted</h3>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white" id="whitelist-count">0</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-red-500 rounded-lg flex items-center justify-center text-2xl">
+                                    ✗
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-sm font-medium text-gray-600 dark:text-gray-400">Blacklisted</h3>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white" id="blacklist-count">0</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center text-2xl">
+                                    ⏱️
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-sm font-medium text-gray-600 dark:text-gray-400">Delay</h3>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white" id="delay-minutes">5 min</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+                    <div class="border-b border-gray-200 dark:border-gray-700">
+                        <nav class="flex -mb-px">
+                            <button onclick="showTab('greylist')" id="tab-greylist"
+                                    class="tab-active px-6 py-3 text-sm font-medium border-b-2">
+                                Greylisted Entries
+                            </button>
+                            <button onclick="showTab('whitelist')" id="tab-whitelist"
+                                    class="tab-inactive px-6 py-3 text-sm font-medium border-b-2">
+                                Whitelist
+                            </button>
+                            <button onclick="showTab('blacklist')" id="tab-blacklist"
+                                    class="tab-inactive px-6 py-3 text-sm font-medium border-b-2">
+                                Blacklist
+                            </button>
+                        </nav>
+                    </div>
+
+                    <!-- Greylist Tab -->
+                    <div id="content-greylist" class="p-6">
+                        <div id="greylist-table" class="overflow-x-auto">
+                            <p class="text-gray-600 dark:text-gray-400">Loading...</p>
+                        </div>
+                    </div>
+
+                    <!-- Whitelist Tab -->
+                    <div id="content-whitelist" class="p-6 hidden">
+                        <div class="mb-4">
+                            <button onclick="document.getElementById('add-whitelist-form').classList.toggle('hidden')"
+                                    class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium">
+                                + Add to Whitelist
+                            </button>
+                        </div>
+
+                        <div id="add-whitelist-form" class="hidden mb-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Add to Whitelist</h3>
+                            <div class="space-y-3">
+                                <input type="text" id="whitelist-pattern" placeholder="user@example.com or @domain.com"
+                                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white"/>
+                                <input type="text" id="whitelist-reason" placeholder="Reason (optional)"
+                                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white"/>
+                                <button onclick="addToWhitelist()"
+                                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium">
+                                    Add
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="whitelist-table" class="overflow-x-auto">
+                            <p class="text-gray-600 dark:text-gray-400">Loading...</p>
+                        </div>
+                    </div>
+
+                    <!-- Blacklist Tab -->
+                    <div id="content-blacklist" class="p-6 hidden">
+                        <div class="mb-4">
+                            <button onclick="document.getElementById('add-blacklist-form').classList.toggle('hidden')"
+                                    class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium">
+                                + Add to Blacklist
+                            </button>
+                        </div>
+
+                        <div id="add-blacklist-form" class="hidden mb-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Add to Blacklist</h3>
+                            <div class="space-y-3">
+                                <input type="text" id="blacklist-pattern" placeholder="spam@example.com or @spam.com"
+                                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white"/>
+                                <input type="text" id="blacklist-reason" placeholder="Reason (optional)"
+                                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white"/>
+                                <button onclick="addToBlacklist()"
+                                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium">
+                                    Add
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="blacklist-table" class="overflow-x-auto">
+                            <p class="text-gray-600 dark:text-gray-400">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info -->
+                <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4">
+                    <p class="text-sm text-blue-700 dark:text-blue-300">
+                        <strong>How Greylisting Works:</strong> First-time senders are temporarily delayed.
+                        Legitimate mail servers will retry after 5 minutes, while spambots typically won't.
+                        After successful retry, the sender is automatically whitelisted.
+                    </p>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+let currentTab = 'greylist';
+
+async function loadData() {
+    // Note: API endpoints need to be created in backend
+    // This is placeholder JavaScript that will work once APIs are ready
+
+    try {
+        // Load stats
+        const statsResponse = await fetch('/api/admin/greylisting/stats');
+        if (statsResponse.ok) {
+            const stats = await statsResponse.json();
+            document.getElementById('greylist-count').textContent = stats.greylist_count || 0;
+            document.getElementById('whitelist-count').textContent = stats.whitelist_count || 0;
+            document.getElementById('blacklist-count').textContent = stats.blacklist_count || 0;
+            document.getElementById('delay-minutes').textContent = `${stats.delay_minutes || 5} min`;
+        }
+
+        // Load current tab data
+        loadTabData();
+    } catch (error) {
+        console.error('Failed to load data:', error);
+    }
+}
+
+async function loadTabData() {
+    if (currentTab === 'greylist') {
+        await loadGreylist();
+    } else if (currentTab === 'whitelist') {
+        await loadWhitelist();
+    } else if (currentTab === 'blacklist') {
+        await loadBlacklist();
+    }
+}
+
+async function loadGreylist() {
+    try {
+        const response = await fetch('/api/admin/greylisting/entries');
+        const entries = await response.json();
+
+        if (entries.length === 0) {
+            document.getElementById('greylist-table').innerHTML =
+                '<p class="text-gray-600 dark:text-gray-400">No greylisted entries</p>';
+            return;
+        }
+
+        let html = `<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-900">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Sender</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Recipient</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">IP</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Attempts</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">First Seen</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">`;
+
+        entries.forEach(entry => {
+            const statusColors = {
+                'Greylisted': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
+                'Whitelisted': 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
+                'Blacklisted': 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+            };
+
+            html += `<tr>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${entry.sender}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${entry.recipient}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${entry.client_ip}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${entry.attempts}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${new Date(entry.first_seen).toLocaleString()}</td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[entry.status] || statusColors.Greylisted}">
+                        ${entry.status}
+                    </span>
+                </td>
+            </tr>`;
+        });
+
+        html += '</tbody></table>';
+        document.getElementById('greylist-table').innerHTML = html;
+    } catch (error) {
+        console.error('Failed to load greylist:', error);
+        document.getElementById('greylist-table').innerHTML =
+            '<p class="text-red-500">Failed to load greylist entries</p>';
+    }
+}
+
+async function loadWhitelist() {
+    try {
+        const response = await fetch('/api/admin/greylisting/whitelist');
+        const entries = await response.json();
+
+        if (entries.length === 0) {
+            document.getElementById('whitelist-table').innerHTML =
+                '<p class="text-gray-600 dark:text-gray-400">No whitelist entries</p>';
+            return;
+        }
+
+        let html = `<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-900">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Pattern</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Reason</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Added At</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">`;
+
+        entries.forEach(entry => {
+            html += `<tr>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${entry.pattern}</td>
+                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">${entry.reason || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${new Date(entry.added_at).toLocaleString()}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+                    <button onclick="removeFromWhitelist('${entry.pattern}')"
+                            class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 font-medium">
+                        Remove
+                    </button>
+                </td>
+            </tr>`;
+        });
+
+        html += '</tbody></table>';
+        document.getElementById('whitelist-table').innerHTML = html;
+    } catch (error) {
+        console.error('Failed to load whitelist:', error);
+        document.getElementById('whitelist-table').innerHTML =
+            '<p class="text-red-500">Failed to load whitelist</p>';
+    }
+}
+
+async function loadBlacklist() {
+    try {
+        const response = await fetch('/api/admin/greylisting/blacklist');
+        const entries = await response.json();
+
+        if (entries.length === 0) {
+            document.getElementById('blacklist-table').innerHTML =
+                '<p class="text-gray-600 dark:text-gray-400">No blacklist entries</p>';
+            return;
+        }
+
+        let html = `<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-900">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Pattern</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Reason</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Added At</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">`;
+
+        entries.forEach(entry => {
+            html += `<tr>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${entry.pattern}</td>
+                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">${entry.reason || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${new Date(entry.added_at).toLocaleString()}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+                    <button onclick="removeFromBlacklist('${entry.pattern}')"
+                            class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 font-medium">
+                        Remove
+                    </button>
+                </td>
+            </tr>`;
+        });
+
+        html += '</tbody></table>';
+        document.getElementById('blacklist-table').innerHTML = html;
+    } catch (error) {
+        console.error('Failed to load blacklist:', error);
+        document.getElementById('blacklist-table').innerHTML =
+            '<p class="text-red-500">Failed to load blacklist</p>';
+    }
+}
+
+function showTab(tab) {
+    // Update tabs
+    currentTab = tab;
+    ['greylist', 'whitelist', 'blacklist'].forEach(t => {
+        document.getElementById(`tab-${t}`).className =
+            t === tab ? 'tab-active px-6 py-3 text-sm font-medium border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'tab-inactive px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300';
+        document.getElementById(`content-${t}`).classList.toggle('hidden', t !== tab);
+    });
+
+    loadTabData();
+}
+
+async function addToWhitelist() {
+    const pattern = document.getElementById('whitelist-pattern').value.trim();
+    const reason = document.getElementById('whitelist-reason').value.trim();
+
+    if (!pattern) {
+        alert('Please enter a pattern');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/greylisting/whitelist', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ pattern, reason: reason || null })
+        });
+
+        if (response.ok) {
+            document.getElementById('whitelist-pattern').value = '';
+            document.getElementById('whitelist-reason').value = '';
+            document.getElementById('add-whitelist-form').classList.add('hidden');
+            await loadData();
+            alert('Added to whitelist successfully');
+        } else {
+            const error = await response.json();
+            alert('Failed to add to whitelist: ' + error.error);
+        }
+    } catch (error) {
+        console.error('Failed to add to whitelist:', error);
+        alert('Failed to add to whitelist: ' + error.message);
+    }
+}
+
+async function removeFromWhitelist(pattern) {
+    if (!confirm(`Remove "${pattern}" from whitelist?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/admin/greylisting/whitelist/${encodeURIComponent(pattern)}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            await loadData();
+            alert('Removed from whitelist successfully');
+        } else {
+            const error = await response.json();
+            alert('Failed to remove from whitelist: ' + error.error);
+        }
+    } catch (error) {
+        console.error('Failed to remove from whitelist:', error);
+        alert('Failed to remove from whitelist: ' + error.message);
+    }
+}
+
+async function addToBlacklist() {
+    const pattern = document.getElementById('blacklist-pattern').value.trim();
+    const reason = document.getElementById('blacklist-reason').value.trim();
+
+    if (!pattern) {
+        alert('Please enter a pattern');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/greylisting/blacklist', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ pattern, reason: reason || null })
+        });
+
+        if (response.ok) {
+            document.getElementById('blacklist-pattern').value = '';
+            document.getElementById('blacklist-reason').value = '';
+            document.getElementById('add-blacklist-form').classList.add('hidden');
+            await loadData();
+            alert('Added to blacklist successfully');
+        } else {
+            const error = await response.json();
+            alert('Failed to add to blacklist: ' + error.error);
+        }
+    } catch (error) {
+        console.error('Failed to add to blacklist:', error);
+        alert('Failed to add to blacklist: ' + error.message);
+    }
+}
+
+async function removeFromBlacklist(pattern) {
+    if (!confirm(`Remove "${pattern}" from blacklist?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/admin/greylisting/blacklist/${encodeURIComponent(pattern)}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            await loadData();
+            alert('Removed from blacklist successfully');
+        } else {
+            const error = await response.json();
+            alert('Failed to remove from blacklist: ' + error.error);
+        }
+    } catch (error) {
+        console.error('Failed to remove from blacklist:', error);
+        alert('Failed to remove from blacklist: ' + error.message);
+    }
+}
+
+async function cleanupOldEntries() {
+    if (!confirm('Clean up old greylist entries? This will remove entries older than 30 days.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/greylisting/cleanup', {
+            method: 'POST'
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            alert(`Cleaned up ${result.removed} old entries`);
+            await loadData();
+        } else {
+            const error = await response.json();
+            alert('Failed to cleanup: ' + error.error);
+        }
+    } catch (error) {
+        console.error('Failed to cleanup:', error);
+        alert('Failed to cleanup: ' + error.message);
+    }
+}
+
+// Load data on page load
+document.addEventListener('DOMContentLoaded', loadData);
+</script>
+
+<style>
+.tab-active {
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+
+.tab-inactive {
+    border-color: transparent;
+    color: #6b7280;
+}
+
+.tab-inactive:hover {
+    color: #374151;
+    border-color: #d1d5db;
+}
+
+.dark .tab-inactive {
+    color: #9ca3af;
+}
+
+.dark .tab-inactive:hover {
+    color: #d1d5db;
+}
+</style>
+{% endblock %}

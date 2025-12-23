@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+
+{% block title %}Server Monitoring - GK Mail Admin{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <h1 class="text-xl font-bold text-gray-900 dark:text-white">
+                        GK Mail Admin
+                    </h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">{{ email }}</span>
+                    <a href="/admin/logout" class="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium">
+                        🚪 Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white dark:bg-gray-800 min-h-[calc(100vh-4rem)] border-r border-gray-200 dark:border-gray-700">
+            <nav class="p-4 space-y-2">
+                <a href="/admin/dashboard"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">📊</span>
+                    <span class="font-medium">Dashboard</span>
+                </a>
+                <a href="/admin/users"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">👥</span>
+                    <span class="font-medium">Users</span>
+                </a>
+                <a href="/admin/templates"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">📝</span>
+                    <span class="font-medium">Email Templates</span>
+                </a>
+                <a href="/admin/auto-reply"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔄</span>
+                    <span class="font-medium">Auto-Reply</span>
+                </a>
+                <a href="/chat/app"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">💬</span>
+                    <span class="font-medium">Email Chat</span>
+                </a>
+                <a href="/admin/security"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🛡️</span>
+                    <span class="font-medium">Security</span>
+                </a>
+                <a href="/admin/greylisting"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🚦</span>
+                    <span class="font-medium">Greylisting</span>
+                </a>
+                <a href="/admin/quotas"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">📊</span>
+                    <span class="font-medium">Quotas</span>
+                </a>
+                <a href="/admin/dns"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🌐</span>
+                    <span class="font-medium">DNS Config</span>
+                </a>
+                <a href="/admin/diagnostics"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔍</span>
+                    <span class="font-medium">Diagnostics</span>
+                </a>
+                <a href="/admin/monitoring"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+                    <span class="text-xl">📈</span>
+                    <span class="font-medium">Monitoring</span>
+                </a>
+                <a href="/admin/backups"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">💾</span>
+                    <span class="font-medium">Backups</span>
+                </a>
+                <a href="/admin/ssl"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔒</span>
+                    <span class="font-medium">SSL Certificates</span>
+                </a>
+                <a href="/admin/settings"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">⚙️</span>
+                    <span class="font-medium">Settings</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-8">
+            <div class="max-w-7xl mx-auto space-y-6">
+                <!-- Header -->
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Server Monitoring</h1>
+                        <p class="text-gray-600 dark:text-gray-400 mt-1">Real-time SMTP and IMAP server statistics</p>
+                    </div>
+                    <button onclick="loadMonitoringData()"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                        🔄 Refresh
+                    </button>
+                </div>
+
+                <!-- Server Status Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- SMTP Server -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-xl font-bold text-gray-900 dark:text-white">SMTP Server</h3>
+                            <span id="smtp-status" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                                Loading...
+                            </span>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 dark:text-gray-400">Active Connections</span>
+                                <span class="text-lg font-bold text-gray-900 dark:text-white" id="smtp-connections">0</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 dark:text-gray-400">Messages Today</span>
+                                <span class="text-lg font-bold text-gray-900 dark:text-white" id="smtp-messages-today">0</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 dark:text-gray-400">Queue Size</span>
+                                <span class="text-lg font-bold text-gray-900 dark:text-white" id="smtp-queue-size">0</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 dark:text-gray-400">Errors (24h)</span>
+                                <span class="text-lg font-bold text-red-600 dark:text-red-400" id="smtp-errors">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- IMAP Server -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-xl font-bold text-gray-900 dark:text-white">IMAP Server</h3>
+                            <span id="imap-status" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                                Loading...
+                            </span>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 dark:text-gray-400">Active Sessions</span>
+                                <span class="text-lg font-bold text-gray-900 dark:text-white" id="imap-sessions">0</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 dark:text-gray-400">Commands Today</span>
+                                <span class="text-lg font-bold text-gray-900 dark:text-white" id="imap-commands-today">0</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 dark:text-gray-400">IDLE Connections</span>
+                                <span class="text-lg font-bold text-gray-900 dark:text-white" id="imap-idle">0</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 dark:text-gray-400">Errors (24h)</span>
+                                <span class="text-lg font-bold text-red-600 dark:text-red-400" id="imap-errors">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Traffic Charts -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Messages Chart -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Messages (Last 24 Hours)</h3>
+                        <div class="h-64 flex items-center justify-center">
+                            <div id="messages-chart" class="w-full h-full flex flex-col justify-end items-center space-x-2">
+                                <p class="text-gray-600 dark:text-gray-400">Chart data loading...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Connections Chart -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Active Connections</h3>
+                        <div class="h-64 flex items-center justify-center">
+                            <div id="connections-chart" class="w-full h-full flex flex-col justify-end items-center space-x-2">
+                                <p class="text-gray-600 dark:text-gray-400">Chart data loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Performance Metrics -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Performance Metrics</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Avg Latency (SMTP)</p>
+                            <p class="text-2xl font-bold text-gray-900 dark:text-white" id="smtp-latency">-- ms</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Avg Latency (IMAP)</p>
+                            <p class="text-2xl font-bold text-gray-900 dark:text-white" id="imap-latency">-- ms</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Throughput</p>
+                            <p class="text-2xl font-bold text-gray-900 dark:text-white" id="throughput">-- msg/s</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Uptime</p>
+                            <p class="text-2xl font-bold text-gray-900 dark:text-white" id="uptime">--</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity Log -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white">Recent Activity</h3>
+                        <button onclick="clearLogs()"
+                                class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                            Clear
+                        </button>
+                    </div>
+                    <div class="p-6">
+                        <div id="activity-log" class="space-y-1 font-mono text-sm max-h-96 overflow-y-auto">
+                            <p class="text-gray-600 dark:text-gray-400">Loading activity log...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Server Info -->
+                <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4">
+                    <p class="text-sm text-blue-700 dark:text-blue-300">
+                        <strong>Monitoring:</strong> Data is refreshed every 30 seconds.
+                        Click "Refresh" to update immediately. Metrics are aggregated over the last 24 hours.
+                    </p>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+let autoRefreshInterval;
+
+async function loadMonitoringData() {
+    try {
+        const response = await fetch('/api/admin/monitoring/stats');
+        if (!response.ok) throw new Error('Failed to load monitoring stats');
+
+        const data = await response.json();
+
+        // Update SMTP stats
+        document.getElementById('smtp-connections').textContent = data.smtp.active_connections || 0;
+        document.getElementById('smtp-messages-today').textContent = data.smtp.messages_today || 0;
+        document.getElementById('smtp-queue-size').textContent = data.smtp.queue_size || 0;
+        document.getElementById('smtp-errors').textContent = data.smtp.errors_24h || 0;
+        document.getElementById('smtp-latency').textContent = data.smtp.avg_latency_ms ? data.smtp.avg_latency_ms.toFixed(1) + ' ms' : '-- ms';
+
+        const smtpStatus = data.smtp.status === 'running' ? 'Running' : 'Stopped';
+        const smtpStatusClass = data.smtp.status === 'running' ?
+            'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' :
+            'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
+        document.getElementById('smtp-status').textContent = smtpStatus;
+        document.getElementById('smtp-status').className = smtpStatusClass;
+
+        // Update IMAP stats
+        document.getElementById('imap-sessions').textContent = data.imap.active_sessions || 0;
+        document.getElementById('imap-commands-today').textContent = data.imap.commands_today || 0;
+        document.getElementById('imap-idle').textContent = data.imap.idle_connections || 0;
+        document.getElementById('imap-errors').textContent = data.imap.errors_24h || 0;
+        document.getElementById('imap-latency').textContent = data.imap.avg_latency_ms ? data.imap.avg_latency_ms.toFixed(1) + ' ms' : '-- ms';
+
+        const imapStatus = data.imap.status === 'running' ? 'Running' : 'Stopped';
+        const imapStatusClass = data.imap.status === 'running' ?
+            'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' :
+            'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
+        document.getElementById('imap-status').textContent = imapStatus;
+        document.getElementById('imap-status').className = imapStatusClass;
+
+        // Update performance metrics
+        document.getElementById('throughput').textContent = data.performance.throughput ?
+            data.performance.throughput.toFixed(2) + ' msg/s' : '0 msg/s';
+        document.getElementById('uptime').textContent = formatUptime(data.performance.uptime_seconds || 0);
+
+        // Load activity log
+        await loadActivityLog();
+
+    } catch (error) {
+        console.error('Failed to load monitoring data:', error);
+        document.getElementById('smtp-status').textContent = 'Error';
+        document.getElementById('imap-status').textContent = 'Error';
+    }
+}
+
+async function loadActivityLog() {
+    try {
+        const response = await fetch('/api/admin/monitoring/logs?limit=50');
+        if (!response.ok) throw new Error('Failed to load logs');
+
+        const logs = await response.json();
+        const logContainer = document.getElementById('activity-log');
+
+        if (logs.length === 0) {
+            logContainer.innerHTML = '<p class="text-gray-600 dark:text-gray-400">No recent activity</p>';
+            return;
+        }
+
+        logContainer.innerHTML = logs.map(log => {
+            const levelColors = {
+                'error': 'text-red-600 dark:text-red-400',
+                'warn': 'text-yellow-600 dark:text-yellow-400',
+                'info': 'text-blue-600 dark:text-blue-400',
+                'debug': 'text-gray-600 dark:text-gray-400'
+            };
+
+            const colorClass = levelColors[log.level] || 'text-gray-600 dark:text-gray-400';
+            const timestamp = new Date(log.timestamp).toLocaleTimeString();
+
+            return `
+                <div class="${colorClass}">
+                    [${timestamp}] [${log.level.toUpperCase()}] ${log.message}
+                </div>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('Failed to load activity log:', error);
+        document.getElementById('activity-log').innerHTML =
+            '<p class="text-red-500">Failed to load activity log</p>';
+    }
+}
+
+function formatUptime(seconds) {
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+
+    if (days > 0) return `${days}d ${hours}h`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+}
+
+function clearLogs() {
+    document.getElementById('activity-log').innerHTML =
+        '<p class="text-gray-600 dark:text-gray-400">Log cleared</p>';
+}
+
+// Auto-refresh every 30 seconds
+function startAutoRefresh() {
+    autoRefreshInterval = setInterval(loadMonitoringData, 30000);
+}
+
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+}
+
+// Load data on page load and start auto-refresh
+document.addEventListener('DOMContentLoaded', () => {
+    loadMonitoringData();
+    startAutoRefresh();
+});
+
+// Stop auto-refresh when page is hidden
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        stopAutoRefresh();
+    } else {
+        startAutoRefresh();
+    }
+});
+</script>
+{% endblock %}

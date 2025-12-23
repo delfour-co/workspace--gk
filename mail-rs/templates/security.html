@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+
+{% block title %}Security Dashboard - GK Mail Admin{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <h1 class="text-xl font-bold text-gray-900 dark:text-white">
+                        GK Mail Admin
+                    </h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">{{ email }}</span>
+                    <a href="/admin/logout" class="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium">
+                        🚪 Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white dark:bg-gray-800 min-h-[calc(100vh-4rem)] border-r border-gray-200 dark:border-gray-700">
+            <nav class="p-4 space-y-2">
+                <a href="/admin/dashboard"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">📊</span>
+                    <span class="font-medium">Dashboard</span>
+                </a>
+                <a href="/admin/users"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">👥</span>
+                    <span class="font-medium">Users</span>
+                </a>
+                <a href="/admin/templates"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">📝</span>
+                    <span class="font-medium">Email Templates</span>
+                </a>
+                <a href="/admin/auto-reply"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔄</span>
+                    <span class="font-medium">Auto-Reply</span>
+                </a>
+                <a href="/chat/app"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">💬</span>
+                    <span class="font-medium">Email Chat</span>
+                </a>
+                <a href="/admin/security"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+                    <span class="text-xl">🛡️</span>
+                    <span class="font-medium">Security</span>
+                </a>
+                <a href="/admin/greylisting"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🚦</span>
+                    <span class="font-medium">Greylisting</span>
+                </a>
+                <a href="/admin/quotas"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">📊</span>
+                    <span class="font-medium">Quotas</span>
+                </a>
+                <a href="/admin/dns"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🌐</span>
+                    <span class="font-medium">DNS Config</span>
+                </a>
+                <a href="/admin/diagnostics"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔍</span>
+                    <span class="font-medium">Diagnostics</span>
+                </a>
+                <a href="/admin/monitoring"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">📈</span>
+                    <span class="font-medium">Monitoring</span>
+                </a>
+                <a href="/admin/backups"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">💾</span>
+                    <span class="font-medium">Backups</span>
+                </a>
+                <a href="/admin/ssl"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔒</span>
+                    <span class="font-medium">SSL Certificates</span>
+                </a>
+                <a href="/admin/settings"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">⚙️</span>
+                    <span class="font-medium">Settings</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-8">
+            <div class="max-w-7xl mx-auto space-y-6">
+                <!-- Header -->
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Email Security</h1>
+                        <p class="text-gray-600 dark:text-gray-400 mt-1">SPF, DKIM, and DMARC authentication status</p>
+                    </div>
+                    <button onclick="loadSecurityData()"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                        🔄 Refresh
+                    </button>
+                </div>
+
+                <!-- Status Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- SPF Status -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-bold text-gray-900 dark:text-white">SPF Validation</h3>
+                            <span id="spf-status-badge" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                                Loading...
+                            </span>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Sender Policy Framework</p>
+                        <div class="text-3xl font-bold" id="spf-pass-rate">--%</div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Pass rate (24h)</p>
+                        <div class="mt-4 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-400">Passed:</span>
+                                <span class="text-green-600 dark:text-green-400 font-medium" id="spf-passed">0</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-400">Failed:</span>
+                                <span class="text-red-600 dark:text-red-400 font-medium" id="spf-failed">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DKIM Status -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-bold text-gray-900 dark:text-white">DKIM Signing</h3>
+                            <span id="dkim-status-badge" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                                Loading...
+                            </span>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">DomainKeys Identified Mail</p>
+                        <div class="text-3xl font-bold" id="dkim-pass-rate">--%</div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Pass rate (24h)</p>
+                        <div class="mt-4 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-400">Signed:</span>
+                                <span class="text-green-600 dark:text-green-400 font-medium" id="dkim-signed">0</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-400">Failed:</span>
+                                <span class="text-red-600 dark:text-red-400 font-medium" id="dkim-failed">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DMARC Status -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-bold text-gray-900 dark:text-white">DMARC Policy</h3>
+                            <span id="dmarc-status-badge" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                                Loading...
+                            </span>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Domain-based Message Auth</p>
+                        <div class="text-3xl font-bold" id="dmarc-pass-rate">--%</div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Pass rate (24h)</p>
+                        <div class="mt-4 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-400">Passed:</span>
+                                <span class="text-green-600 dark:text-green-400 font-medium" id="dmarc-passed">0</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-400">Failed:</span>
+                                <span class="text-red-600 dark:text-red-400 font-medium" id="dmarc-failed">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Configuration Status -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Configuration Status</h2>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-2xl" id="spf-config-icon">✓</span>
+                                <div>
+                                    <div class="font-medium text-gray-900 dark:text-white">SPF Validation Enabled</div>
+                                    <div class="text-sm text-gray-600 dark:text-gray-400">Checking incoming mail SPF records</div>
+                                </div>
+                            </div>
+                            <span class="text-green-600 dark:text-green-400 font-medium" id="spf-config-status">Active</span>
+                        </div>
+
+                        <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-2xl" id="dkim-config-icon">✓</span>
+                                <div>
+                                    <div class="font-medium text-gray-900 dark:text-white">DKIM Signing Enabled</div>
+                                    <div class="text-sm text-gray-600 dark:text-gray-400">Signing outgoing mail with DKIM</div>
+                                </div>
+                            </div>
+                            <span class="text-green-600 dark:text-green-400 font-medium" id="dkim-config-status">Active</span>
+                        </div>
+
+                        <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-2xl" id="dmarc-config-icon">✓</span>
+                                <div>
+                                    <div class="font-medium text-gray-900 dark:text-white">DMARC Validation Enabled</div>
+                                    <div class="text-sm text-gray-600 dark:text-gray-400">Enforcing DMARC policies</div>
+                                </div>
+                            </div>
+                            <span class="text-green-600 dark:text-green-400 font-medium" id="dmarc-config-status">Active</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Security Events -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                        <h2 class="text-xl font-bold text-gray-900 dark:text-white">Recent Security Events</h2>
+                    </div>
+                    <div class="p-6">
+                        <div id="security-events" class="space-y-2">
+                            <p class="text-gray-600 dark:text-gray-400">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info -->
+                <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4">
+                    <p class="text-sm text-blue-700 dark:text-blue-300">
+                        <strong>Email Authentication:</strong> SPF validates sender IP addresses, DKIM verifies message integrity with cryptographic signatures,
+                        and DMARC provides policy enforcement and reporting. These work together to prevent email spoofing and phishing.
+                    </p>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+async function loadSecurityData() {
+    try {
+        const response = await fetch('/api/admin/security/stats');
+        if (!response.ok) throw new Error('Failed to load security stats');
+
+        const data = await response.json();
+
+        // Update SPF stats
+        const spfPassRate = data.spf.total > 0 ? ((data.spf.passed / data.spf.total) * 100).toFixed(1) : 0;
+        document.getElementById('spf-pass-rate').textContent = spfPassRate + '%';
+        document.getElementById('spf-passed').textContent = data.spf.passed;
+        document.getElementById('spf-failed').textContent = data.spf.failed;
+        document.getElementById('spf-status-badge').textContent = data.spf.enabled ? 'Enabled' : 'Disabled';
+        document.getElementById('spf-status-badge').className = data.spf.enabled ?
+            'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' :
+            'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+
+        // Update DKIM stats
+        const dkimPassRate = data.dkim.total > 0 ? ((data.dkim.signed / data.dkim.total) * 100).toFixed(1) : 0;
+        document.getElementById('dkim-pass-rate').textContent = dkimPassRate + '%';
+        document.getElementById('dkim-signed').textContent = data.dkim.signed;
+        document.getElementById('dkim-failed').textContent = data.dkim.failed;
+        document.getElementById('dkim-status-badge').textContent = data.dkim.enabled ? 'Enabled' : 'Disabled';
+        document.getElementById('dkim-status-badge').className = data.dkim.enabled ?
+            'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' :
+            'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+
+        // Update DMARC stats
+        const dmarcPassRate = data.dmarc.total > 0 ? ((data.dmarc.passed / data.dmarc.total) * 100).toFixed(1) : 0;
+        document.getElementById('dmarc-pass-rate').textContent = dmarcPassRate + '%';
+        document.getElementById('dmarc-passed').textContent = data.dmarc.passed;
+        document.getElementById('dmarc-failed').textContent = data.dmarc.failed;
+        document.getElementById('dmarc-status-badge').textContent = data.dmarc.enabled ? 'Enabled' : 'Disabled';
+        document.getElementById('dmarc-status-badge').className = data.dmarc.enabled ?
+            'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' :
+            'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+
+        // Load recent events
+        await loadSecurityEvents();
+
+    } catch (error) {
+        console.error('Failed to load security data:', error);
+        // Set defaults
+        ['spf', 'dkim', 'dmarc'].forEach(type => {
+            document.getElementById(`${type}-pass-rate`).textContent = '0%';
+            document.getElementById(`${type}-passed` || `${type}-signed`).textContent = '0';
+            document.getElementById(`${type}-failed`).textContent = '0';
+        });
+    }
+}
+
+async function loadSecurityEvents() {
+    try {
+        const response = await fetch('/api/admin/security/events?limit=50');
+        if (!response.ok) throw new Error('Failed to load events');
+
+        const events = await response.json();
+        const eventsContainer = document.getElementById('security-events');
+
+        if (events.length === 0) {
+            eventsContainer.innerHTML = '<p class="text-gray-600 dark:text-gray-400">No recent security events</p>';
+            return;
+        }
+
+        eventsContainer.innerHTML = events.map(event => {
+            const typeColors = {
+                'spf_pass': 'text-green-600 dark:text-green-400',
+                'spf_fail': 'text-red-600 dark:text-red-400',
+                'dkim_pass': 'text-green-600 dark:text-green-400',
+                'dkim_fail': 'text-red-600 dark:text-red-400',
+                'dmarc_pass': 'text-green-600 dark:text-green-400',
+                'dmarc_fail': 'text-red-600 dark:text-red-400'
+            };
+
+            const icon = event.result === 'pass' ? '✓' : '✗';
+            const colorClass = typeColors[`${event.type}_${event.result}`] || 'text-gray-600';
+
+            return `
+                <div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                    <div class="flex items-center space-x-3">
+                        <span class="${colorClass} text-lg">${icon}</span>
+                        <div>
+                            <span class="font-medium text-gray-900 dark:text-white">${event.type.toUpperCase()}</span>
+                            <span class="text-sm text-gray-600 dark:text-gray-400 ml-2">${event.sender || event.from}</span>
+                        </div>
+                    </div>
+                    <span class="text-sm text-gray-500 dark:text-gray-400">
+                        ${new Date(event.timestamp).toLocaleString()}
+                    </span>
+                </div>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('Failed to load events:', error);
+        document.getElementById('security-events').innerHTML =
+            '<p class="text-red-500">Failed to load security events</p>';
+    }
+}
+
+// Load data on page load
+document.addEventListener('DOMContentLoaded', loadSecurityData);
+</script>
+{% endblock %}

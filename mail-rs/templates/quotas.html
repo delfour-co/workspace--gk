@@ -1,0 +1,481 @@
+{% extends "base.html" %}
+
+{% block title %}Quota Management - GK Mail Admin{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <h1 class="text-xl font-bold text-gray-900 dark:text-white">
+                        GK Mail Admin
+                    </h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">{{ email }}</span>
+                    <a href="/admin/logout" class="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium">
+                        🚪 Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white dark:bg-gray-800 min-h-[calc(100vh-4rem)] border-r border-gray-200 dark:border-gray-700">
+            <nav class="p-4 space-y-2">
+                <a href="/admin/dashboard"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">📊</span>
+                    <span class="font-medium">Dashboard</span>
+                </a>
+                <a href="/admin/users"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">👥</span>
+                    <span class="font-medium">Users</span>
+                </a>
+                <a href="/admin/templates"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">📝</span>
+                    <span class="font-medium">Email Templates</span>
+                </a>
+                <a href="/admin/auto-reply"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔄</span>
+                    <span class="font-medium">Auto-Reply</span>
+                </a>
+                <a href="/chat/app"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">💬</span>
+                    <span class="font-medium">Email Chat</span>
+                </a>
+                <a href="/admin/security"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🛡️</span>
+                    <span class="font-medium">Security</span>
+                </a>
+                <a href="/admin/greylisting"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🚦</span>
+                    <span class="font-medium">Greylisting</span>
+                </a>
+                <a href="/admin/quotas"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+                    <span class="text-xl">📊</span>
+                    <span class="font-medium">Quotas</span>
+                </a>
+                <a href="/admin/dns"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🌐</span>
+                    <span class="font-medium">DNS Config</span>
+                </a>
+                <a href="/admin/diagnostics"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔍</span>
+                    <span class="font-medium">Diagnostics</span>
+                </a>
+                <a href="/admin/monitoring"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">📈</span>
+                    <span class="font-medium">Monitoring</span>
+                </a>
+                <a href="/admin/backups"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">💾</span>
+                    <span class="font-medium">Backups</span>
+                </a>
+                <a href="/admin/ssl"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔒</span>
+                    <span class="font-medium">SSL Certificates</span>
+                </a>
+                <a href="/admin/settings"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">⚙️</span>
+                    <span class="font-medium">Settings</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-8">
+            <div class="max-w-7xl mx-auto space-y-6">
+                <!-- Header -->
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Quota Management</h1>
+                        <p class="text-gray-600 dark:text-gray-400 mt-1">Manage storage and message limits</p>
+                    </div>
+                    <button onclick="document.getElementById('default-quota-modal').classList.remove('hidden')"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                        ⚙️ Configure Defaults
+                    </button>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center text-2xl">
+                                    👥
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Users</h3>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white" id="total-users">0</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center text-2xl">
+                                    💾
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Storage</h3>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white" id="total-storage">0 GB</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-yellow-500 rounded-lg flex items-center justify-center text-2xl">
+                                    ⚠️
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-sm font-medium text-gray-600 dark:text-gray-400">Near Limit</h3>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white" id="near-limit-count">0</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-red-500 rounded-lg flex items-center justify-center text-2xl">
+                                    🚫
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-sm font-medium text-gray-600 dark:text-gray-400">Over Limit</h3>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white" id="over-limit-count">0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quotas List -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                        <h2 class="text-xl font-bold text-gray-900 dark:text-white">User Quotas</h2>
+                    </div>
+                    <div class="p-6">
+                        <div id="quotas-list" class="space-y-4">
+                            <p class="text-gray-600 dark:text-gray-400">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info -->
+                <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4">
+                    <p class="text-sm text-blue-700 dark:text-blue-300">
+                        <strong>Default Limits:</strong> Storage: 1 GB, Daily Messages: 100, Max Message Size: 25 MB.
+                        Click "Configure Defaults" to change these limits for new users.
+                    </p>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- Default Quota Modal -->
+<div id="default-quota-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Configure Default Quotas</h3>
+                <button onclick="document.getElementById('default-quota-modal').classList.add('hidden')"
+                        class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    ✕
+                </button>
+            </div>
+        </div>
+        <div class="p-6 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Storage Limit (GB)
+                </label>
+                <input type="number" id="default-storage" value="1" min="0"
+                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-900 dark:text-white"/>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Daily Message Limit
+                </label>
+                <input type="number" id="default-messages" value="100" min="0"
+                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-900 dark:text-white"/>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Max Message Size (MB)
+                </label>
+                <input type="number" id="default-max-size" value="25" min="1"
+                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-900 dark:text-white"/>
+            </div>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
+            <button onclick="document.getElementById('default-quota-modal').classList.add('hidden')"
+                    class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                Cancel
+            </button>
+            <button onclick="saveDefaultQuotas()"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                Save Defaults
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Quota Modal -->
+<div id="edit-quota-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Edit Quota</h3>
+                <button onclick="document.getElementById('edit-quota-modal').classList.add('hidden')"
+                        class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    ✕
+                </button>
+            </div>
+        </div>
+        <div class="p-6 space-y-4">
+            <input type="hidden" id="edit-email"/>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    User Email
+                </label>
+                <input type="text" id="edit-email-display" readonly
+                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 dark:text-white"/>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Storage Limit (GB)
+                </label>
+                <input type="number" id="edit-storage" min="0" step="0.1"
+                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-900 dark:text-white"/>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Daily Message Limit
+                </label>
+                <input type="number" id="edit-messages" min="0"
+                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-900 dark:text-white"/>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Max Message Size (MB)
+                </label>
+                <input type="number" id="edit-max-size" min="1"
+                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-900 dark:text-white"/>
+            </div>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
+            <button onclick="document.getElementById('edit-quota-modal').classList.add('hidden')"
+                    class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                Cancel
+            </button>
+            <button onclick="saveQuota()"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                Save Changes
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+async function loadQuotas() {
+    try {
+        const response = await fetch('/api/admin/quotas');
+        const quotas = await response.json();
+
+        // Update stats
+        let totalStorage = 0;
+        let nearLimit = 0;
+        let overLimit = 0;
+
+        quotas.forEach(quota => {
+            totalStorage += quota.storage_used;
+            const percent = (quota.storage_used / quota.storage_limit) * 100;
+            if (percent >= 100) overLimit++;
+            else if (percent >= 80) nearLimit++;
+        });
+
+        document.getElementById('total-users').textContent = quotas.length;
+        document.getElementById('total-storage').textContent = formatBytes(totalStorage);
+        document.getElementById('near-limit-count').textContent = nearLimit;
+        document.getElementById('over-limit-count').textContent = overLimit;
+
+        // Render quotas
+        const listContainer = document.getElementById('quotas-list');
+        if (quotas.length === 0) {
+            listContainer.innerHTML = '<p class="text-gray-600 dark:text-gray-400">No quotas configured</p>';
+            return;
+        }
+
+        listContainer.innerHTML = quotas.map(quota => {
+            const percent = Math.min(100, (quota.storage_used / quota.storage_limit) * 100);
+            const barColor = percent >= 100 ? 'bg-red-500' :
+                           percent >= 80 ? 'bg-yellow-500' :
+                           'bg-green-500';
+
+            const statusIcon = percent >= 100 ? '🚫' :
+                             percent >= 80 ? '⚠️' :
+                             '✓';
+
+            return `
+                <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-xl">${statusIcon}</span>
+                                <span class="font-medium text-gray-900 dark:text-white">${quota.email}</span>
+                            </div>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                ${formatBytes(quota.storage_used)} / ${formatBytes(quota.storage_limit)} used
+                                (${percent.toFixed(1)}%)
+                            </p>
+                        </div>
+                        <button onclick='editQuota(${JSON.stringify(quota)})'
+                                class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+                            Edit
+                        </button>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-3">
+                        <div class="${barColor} h-2 rounded-full" style="width: ${percent}%"></div>
+                    </div>
+
+                    <!-- Details -->
+                    <div class="grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                            <p class="text-gray-600 dark:text-gray-400">Messages Today</p>
+                            <p class="font-medium text-gray-900 dark:text-white">
+                                ${quota.message_count_today} / ${quota.message_limit_daily}
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600 dark:text-gray-400">Max Message</p>
+                            <p class="font-medium text-gray-900 dark:text-white">
+                                ${formatBytes(quota.max_message_size)}
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600 dark:text-gray-400">Remaining</p>
+                            <p class="font-medium text-gray-900 dark:text-white">
+                                ${formatBytes(quota.storage_limit - quota.storage_used)}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('Failed to load quotas:', error);
+        document.getElementById('quotas-list').innerHTML =
+            '<p class="text-red-500">Failed to load quotas. Please try again.</p>';
+    }
+}
+
+function editQuota(quota) {
+    document.getElementById('edit-email').value = quota.email;
+    document.getElementById('edit-email-display').value = quota.email;
+    document.getElementById('edit-storage').value = (quota.storage_limit / (1024 * 1024 * 1024)).toFixed(2);
+    document.getElementById('edit-messages').value = quota.message_limit_daily;
+    document.getElementById('edit-max-size').value = (quota.max_message_size / (1024 * 1024)).toFixed(0);
+    document.getElementById('edit-quota-modal').classList.remove('hidden');
+}
+
+async function saveQuota() {
+    const email = document.getElementById('edit-email').value;
+    const storageGB = parseFloat(document.getElementById('edit-storage').value);
+    const messages = parseInt(document.getElementById('edit-messages').value);
+    const maxSizeMB = parseInt(document.getElementById('edit-max-size').value);
+
+    try {
+        const response = await fetch(`/api/admin/quotas/${encodeURIComponent(email)}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                storage_limit: Math.floor(storageGB * 1024 * 1024 * 1024),
+                message_limit_daily: messages,
+                max_message_size: maxSizeMB * 1024 * 1024
+            })
+        });
+
+        if (response.ok) {
+            document.getElementById('edit-quota-modal').classList.add('hidden');
+            await loadQuotas();
+            alert('Quota updated successfully');
+        } else {
+            const error = await response.json();
+            alert('Failed to update quota: ' + error.error);
+        }
+    } catch (error) {
+        console.error('Failed to update quota:', error);
+        alert('Failed to update quota: ' + error.message);
+    }
+}
+
+async function saveDefaultQuotas() {
+    const storageGB = parseFloat(document.getElementById('default-storage').value);
+    const messages = parseInt(document.getElementById('default-messages').value);
+    const maxSizeMB = parseInt(document.getElementById('default-max-size').value);
+
+    try {
+        const response = await fetch('/api/admin/quotas/defaults', {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                storage_limit: Math.floor(storageGB * 1024 * 1024 * 1024),
+                message_limit_daily: messages,
+                max_message_size: maxSizeMB * 1024 * 1024
+            })
+        });
+
+        if (response.ok) {
+            document.getElementById('default-quota-modal').classList.add('hidden');
+            alert('Default quotas updated successfully');
+        } else {
+            const error = await response.json();
+            alert('Failed to update defaults: ' + error.error);
+        }
+    } catch (error) {
+        console.error('Failed to update defaults:', error);
+        alert('Failed to update defaults: ' + error.message);
+    }
+}
+
+// Load quotas on page load
+document.addEventListener('DOMContentLoaded', loadQuotas);
+</script>
+{% endblock %}

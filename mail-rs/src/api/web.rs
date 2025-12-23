@@ -434,3 +434,75 @@ pub async fn auto_reply_page(
 
     AutoReplyTemplate { email }.into_response()
 }
+
+#[derive(Template)]
+#[template(path = "greylisting.html")]
+struct GreylistingTemplate {
+    email: String,
+}
+
+// Greylisting management page
+pub async fn greylisting_page(
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let email = match get_session_email(&headers) {
+        Some(e) => e,
+        None => return Redirect::to("/admin/login").into_response(),
+    };
+
+    GreylistingTemplate { email }.into_response()
+}
+
+#[derive(Template)]
+#[template(path = "quotas.html")]
+struct QuotasTemplate {
+    email: String,
+}
+
+// Quota management page
+pub async fn quotas_page(
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let email = match get_session_email(&headers) {
+        Some(e) => e,
+        None => return Redirect::to("/admin/login").into_response(),
+    };
+
+    QuotasTemplate { email }.into_response()
+}
+
+#[derive(Template)]
+#[template(path = "security.html")]
+struct SecurityTemplate {
+    email: String,
+}
+
+// Security dashboard page
+pub async fn security_page(
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let email = match get_session_email(&headers) {
+        Some(e) => e,
+        None => return Redirect::to("/admin/login").into_response(),
+    };
+
+    SecurityTemplate { email }.into_response()
+}
+
+#[derive(Template)]
+#[template(path = "monitoring.html")]
+struct MonitoringTemplate {
+    email: String,
+}
+
+// Server monitoring page
+pub async fn monitoring_page(
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let email = match get_session_email(&headers) {
+        Some(e) => e,
+        None => return Redirect::to("/admin/login").into_response(),
+    };
+
+    MonitoringTemplate { email }.into_response()
+}
