@@ -183,53 +183,38 @@ impl TemplateManager {
         }
 
         // Build update query dynamically
-        let mut updates = Vec::new();
-        let mut params: Vec<String> = Vec::new();
+        let now = Utc::now();
 
-        if let Some(name) = request.name {
-            updates.push("name = ?");
-            params.push(name);
-        }
-        if let Some(subject) = request.subject {
-            updates.push("subject = ?");
-            params.push(subject);
-        }
-        if let Some(body_html) = request.body_html {
-            updates.push("body_html = ?");
-            params.push(body_html);
-        }
-        if let Some(body_text) = request.body_text {
-            updates.push("body_text = ?");
-            params.push(body_text);
-        }
-        if let Some(variables) = request.variables {
-            updates.push("variables = ?");
-            params.push(serde_json::to_string(&variables)?);
-        }
-        if let Some(is_signature) = request.is_signature {
-            updates.push("is_signature = ?");
-            params.push(is_signature.to_string());
-        }
+        // Use a simple approach: update all non-None fields
+        let name = request.name.unwrap_or(existing.name.clone());
+        let subject = request.subject.unwrap_or(existing.subject.clone());
+        let body_html = request.body_html.unwrap_or(existing.body_html.clone());
+        let body_text = request.body_text.unwrap_or(existing.body_text.clone());
+        let variables_json = if let Some(vars) = request.variables {
+            serde_json::to_string(&vars)?
+        } else {
+            serde_json::to_string(&existing.variables)?
+        };
+        let is_signature = request.is_signature.unwrap_or(existing.is_signature);
 
-        updates.push("updated_at = ?");
-        params.push(Utc::now().to_rfc3339());
-
-        if updates.is_empty() {
-            return Ok(existing);
-        }
-
-        let query_str = format!(
-            "UPDATE email_templates SET {} WHERE id = ?",
-            updates.join(", ")
-        );
-
-        let mut query = sqlx::query(&query_str);
-        for param in params {
-            query = query.bind(param);
-        }
-        query = query.bind(id);
-
-        query.execute(&self.db).await?;
+        sqlx::query(
+            r#"
+            UPDATE email_templates
+            SET name = ?, subject = ?, body_html = ?, body_text = ?,
+                variables = ?, is_signature = ?, updated_at = ?
+            WHERE id = ?
+            "#,
+        )
+        .bind(&name)
+        .bind(&subject)
+        .bind(&body_html)
+        .bind(&body_text)
+        .bind(&variables_json)
+        .bind(is_signature)
+        .bind(now.to_rfc3339())
+        .bind(id)
+        .execute(&self.db)
+        .await?;
 
         // Fetch updated template
         self.get_template(id)

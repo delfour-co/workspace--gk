@@ -76,12 +76,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         info!("Starting API server on 0.0.0.0:8080...");
-        let api_server = ApiServer::new(
+        let database_url = api_config.smtp.auth_database_url.as_ref()
+            .unwrap_or(&"sqlite://data/users.db".to_string())
+            .clone();
+
+        let api_server = match ApiServer::new(
             authenticator,
             "dev-secret-key-change-in-production".to_string(),
             api_config.storage.maildir_path.clone(),
+            database_url,
             "0.0.0.0:8080".to_string(),
-        );
+        ).await {
+            Ok(server) => server,
+            Err(e) => {
+                error!("Failed to create API server: {}", e);
+                return Err(e.into());
+            }
+        };
 
         api_server.run().await.map_err(Into::into)
     });

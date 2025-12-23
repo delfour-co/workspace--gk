@@ -16,10 +16,13 @@ use tokio::sync::RwLock;
 use tower_http::cors::{Any, CorsLayer};
 use tracing::{info, warn};
 
-use crate::api::{admin, web};
+use crate::api::{admin, auto_reply, templates, web};
 use crate::api::auth::{Claims, JwtConfig};
 use crate::api::handlers::{self, ApiError, AppState};
+use crate::auto_reply::AutoReplyManager;
 use crate::security::Authenticator;
+use crate::templates::TemplateManager;
+use sqlx::SqlitePool;
 
 /// Rate limiter state for tracking requests per IP
 pub struct RateLimiter {
@@ -76,17 +79,20 @@ impl RateLimiter {
 pub struct ApiServer {
     state: Arc<AppState>,
     rate_limiter: Arc<RateLimiter>,
+    template_manager: Arc<TemplateManager>,
+    auto_reply_manager: Arc<AutoReplyManager>,
     addr: String,
 }
 
 impl ApiServer {
     /// Create a new API server
-    pub fn new(
+    pub async fn new(
         authenticator: Authenticator,
         jwt_secret: String,
         maildir_root: String,
+        database_url: String,
         addr: String,
-    ) -> Self {
+    ) -> Result<Self, sqlx::Error> {
         let state = Arc::new(AppState {
             authenticator,
             jwt_config: JwtConfig::new(jwt_secret, 24),
@@ -96,7 +102,28 @@ impl ApiServer {
         // Rate limiter: 100 requests per minute per IP
         let rate_limiter = Arc::new(RateLimiter::new(100, 60));
 
-        Self { state, rate_limiter, addr }
+        // Create database connection pool
+        let db = SqlitePool::connect(&database_url).await?;
+
+        // Create template manager
+        let template_manager = Arc::new(TemplateManager::new(db.clone()));
+        template_manager.init_db().await.map_err(|e| {
+            sqlx::Error::Protocol(format!("Failed to initialize templates table: {}", e))
+        })?;
+
+        // Create auto-reply manager
+        let auto_reply_manager = Arc::new(AutoReplyManager::new(db));
+        auto_reply_manager.init_db().await.map_err(|e| {
+            sqlx::Error::Protocol(format!("Failed to initialize auto_reply tables: {}", e))
+        })?;
+
+        Ok(Self {
+            state,
+            rate_limiter,
+            template_manager,
+            auto_reply_manager,
+            addr,
+        })
     }
 
     /// Build the router with all routes
@@ -124,7 +151,7 @@ impl ApiServer {
             ));
 
         // Admin API routes (auth required + admin role check)
-        use axum::routing::{delete, patch};
+        use axum::routing::{delete, patch, put};
         let admin_api_routes = Router::new()
             .route("/users", get(admin::list_users))
             .route("/users/:id", get(admin::get_user))
@@ -147,6 +174,35 @@ impl ApiServer {
                 auth_middleware,
             ));
 
+        // Template API routes (session-based auth via cookies)
+        let template_state = Arc::new(templates::TemplateState {
+            template_manager: self.template_manager.clone(),
+        });
+
+        let template_api_routes = Router::new()
+            .route("/templates", get(templates::list_templates))
+            .route("/templates/category/:category", get(templates::list_templates_by_category))
+            .route("/templates/:id", get(templates::get_template))
+            .route("/templates", post(templates::create_template))
+            .route("/templates/:id", put(templates::update_template))
+            .route("/templates/:id", delete(templates::delete_template))
+            .route("/templates/:id/render", post(templates::render_template))
+            .route("/templates/signature/default", get(templates::get_default_signature))
+            .with_state(template_state);
+
+        // Auto-reply API routes (session-based auth via cookies)
+        let auto_reply_state = Arc::new(auto_reply::AutoReplyState {
+            manager: self.auto_reply_manager.clone(),
+        });
+
+        let auto_reply_api_routes = Router::new()
+            .route("/auto-reply", get(auto_reply::get_auto_reply))
+            .route("/auto-reply", post(auto_reply::create_auto_reply))
+            .route("/auto-reply", put(auto_reply::update_auto_reply))
+            .route("/auto-reply", delete(auto_reply::delete_auto_reply))
+            .route("/auto-reply/toggle", post(auto_reply::toggle_auto_reply))
+            .with_state(auto_reply_state);
+
         // Web routes (HTML pages)
         let web_state = Arc::new(web::AppState {
             authenticator: self.state.authenticator.clone(),
@@ -160,6 +216,8 @@ impl ApiServer {
             .route("/admin/users", get(web::users_page))
             .route("/admin/users", post(web::create_user))
             .route("/admin/users/:id", delete(web::delete_user))
+            .route("/admin/templates", get(web::templates_page))
+            .route("/admin/auto-reply", get(web::auto_reply_page))
             .route("/admin/dns", get(web::dns_page))
             .route("/admin/diagnostics", get(web::diagnostics_page))
             .route("/admin/backups", get(web::backups_page))
@@ -177,7 +235,13 @@ impl ApiServer {
 
         // Combine all routes
         Router::new()
-            .nest("/api", public_routes.merge(protected_routes))
+            .nest(
+                "/api",
+                public_routes
+                    .merge(protected_routes)
+                    .merge(template_api_routes)
+                    .merge(auto_reply_api_routes),
+            )
             .nest("/api/admin", admin_api_routes)
             .merge(web_routes)
             .merge(chat_routes)

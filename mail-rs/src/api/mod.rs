@@ -4,9 +4,11 @@
 
 pub mod admin;
 pub mod auth;
+pub mod auto_reply;
 pub mod handlers;
 pub mod metrics;
 pub mod server;
+pub mod templates;
 pub mod web;
 
 pub use metrics::Metrics;

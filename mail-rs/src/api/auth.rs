@@ -1,8 +1,12 @@
 //! JWT Authentication for REST API
 
+use axum::http::{header, HeaderMap};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+/// Session cookie name for admin interface
+const SESSION_COOKIE: &str = "admin_session";
 
 /// JWT Claims
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -68,6 +72,20 @@ impl Default for JwtConfig {
     fn default() -> Self {
         Self::new("change-me-in-production".to_string(), 24)
     }
+}
+
+/// Extract email from session cookie
+pub fn get_session_email(headers: &HeaderMap) -> Option<String> {
+    let cookie_header = headers.get(header::COOKIE)?;
+    let cookies = cookie_header.to_str().ok()?;
+
+    for cookie in cookies.split(';') {
+        let cookie = cookie.trim();
+        if let Some(value) = cookie.strip_prefix(&format!("{}=", SESSION_COOKIE)) {
+            return Some(value.to_string());
+        }
+    }
+    None
 }
 
 #[cfg(test)]

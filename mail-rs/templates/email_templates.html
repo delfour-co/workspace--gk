@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Templates - Mail Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#1a1a1a',
+                            card: '#2d2d2d',
+                            border: '#404040',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-100 dark:bg-dark-bg min-h-screen">
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white dark:bg-dark-card shadow-lg h-screen sticky top-0">
+            <div class="p-6">
+                <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Mail Admin</h1>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{{email}}</p>
+            </div>
+            <nav class="mt-6">
+                <a href="/admin/dashboard" class="block px-6 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-bg">
+                    📊 Dashboard
+                </a>
+                <a href="/admin/users" class="block px-6 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-bg">
+                    👥 Users
+                </a>
+                <a href="/admin/templates" class="block px-6 py-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-r-4 border-blue-600">
+                    📝 Email Templates
+                </a>
+                <a href="/admin/dns" class="block px-6 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-bg">
+                    🌐 DNS Config
+                </a>
+                <a href="/admin/diagnostics" class="block px-6 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-bg">
+                    🔍 Diagnostics
+                </a>
+                <a href="/admin/backups" class="block px-6 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-bg">
+                    💾 Backups
+                </a>
+                <a href="/admin/ssl" class="block px-6 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-bg">
+                    🔒 SSL Certificates
+                </a>
+                <a href="/admin/settings" class="block px-6 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-bg">
+                    ⚙️ Settings
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-8">
+            <div class="max-w-7xl mx-auto">
+                <div class="flex justify-between items-center mb-8">
+                    <h2 class="text-3xl font-bold text-gray-900 dark:text-white">📝 Email Templates</h2>
+                    <button onclick="showCreateModal()" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                        + New Template
+                    </button>
+                </div>
+
+                <!-- Filter Tabs -->
+                <div class="flex space-x-4 mb-6">
+                    <button onclick="filterCategory('all')" id="filter-all" class="px-4 py-2 rounded-lg bg-blue-600 text-white">All</button>
+                    <button onclick="filterCategory('signature')" id="filter-signature" class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-dark-card text-gray-700 dark:text-gray-300">Signatures</button>
+                    <button onclick="filterCategory('quick_reply')" id="filter-quick_reply" class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-dark-card text-gray-700 dark:text-gray-300">Quick Replies</button>
+                    <button onclick="filterCategory('custom')" id="filter-custom" class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-dark-card text-gray-700 dark:text-gray-300">Custom</button>
+                </div>
+
+                <!-- Templates Grid -->
+                <div id="templates-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Templates will be loaded here -->
+                </div>
+
+                <!-- Empty State -->
+                <div id="empty-state" class="hidden text-center py-16">
+                    <div class="text-6xl mb-4">📭</div>
+                    <p class="text-gray-500 dark:text-gray-400 text-lg">No templates found</p>
+                    <button onclick="showCreateModal()" class="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        Create your first template
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Create/Edit Modal -->
+    <div id="templateModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white dark:bg-dark-card rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white" id="modal-title">Create Template</h3>
+                    <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <form id="templateForm" onsubmit="saveTemplate(event)" class="space-y-6">
+                    <input type="hidden" id="template-id" value="">
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Template Name</label>
+                        <input type="text" id="template-name" required
+                            class="w-full px-4 py-2 border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-gray-900 dark:text-white">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Category</label>
+                            <select id="template-category" required
+                                class="w-full px-4 py-2 border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-gray-900 dark:text-white">
+                                <option value="signature">Signature</option>
+                                <option value="quick_reply">Quick Reply</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                <input type="checkbox" id="template-is-signature" class="mr-2">
+                                Set as default signature
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Subject (optional)</label>
+                        <input type="text" id="template-subject"
+                            class="w-full px-4 py-2 border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-gray-900 dark:text-white"
+                            placeholder="e.g., Re: &#123;&#123;subject&#125;&#125;">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">HTML Body</label>
+                        <textarea id="template-body-html" required rows="8" oninput="updatePreview()"
+                            class="w-full px-4 py-2 border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-gray-900 dark:text-white font-mono text-sm"
+                            placeholder="&lt;p&gt;Hello &#123;&#123;recipient_name&#125;&#125;,&lt;/p&gt;"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Plain Text Body</label>
+                        <textarea id="template-body-text" rows="6"
+                            class="w-full px-4 py-2 border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-gray-900 dark:text-white font-mono text-sm"
+                            placeholder="Hello &#123;&#123;recipient_name&#125;&#125;,"></textarea>
+                    </div>
+
+                    <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                        <p class="text-sm text-gray-700 dark:text-gray-300 mb-2"><strong>Available Variables:</strong></p>
+                        <div class="grid grid-cols-2 gap-2 text-sm text-gray-600 dark:text-gray-400 font-mono">
+                            <div>• &#123;&#123;sender_name&#125;&#125;</div>
+                            <div>• &#123;&#123;recipient_name&#125;&#125;</div>
+                            <div>• &#123;&#123;sender_email&#125;&#125;</div>
+                            <div>• &#123;&#123;recipient_email&#125;&#125;</div>
+                            <div>• &#123;&#123;date&#125;&#125;</div>
+                            <div>• &#123;&#123;time&#125;&#125;</div>
+                            <div>• &#123;&#123;company&#125;&#125;</div>
+                            <div>• &#123;&#123;job_title&#125;&#125;</div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Preview</label>
+                        <div id="preview" class="border border-gray-300 dark:border-dark-border rounded-lg p-4 bg-gray-50 dark:bg-dark-bg min-h-32">
+                            <p class="text-gray-500 dark:text-gray-400 text-sm">Type in the HTML body to see preview...</p>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end space-x-4 pt-4 border-t border-gray-200 dark:border-dark-border">
+                        <button type="button" onclick="closeModal()"
+                            class="px-6 py-2 border border-gray-300 dark:border-dark-border rounded-lg hover:bg-gray-100 dark:hover:bg-dark-bg text-gray-700 dark:text-gray-300">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            Save Template
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentFilter = 'all';
+        let allTemplates = [];
+
+        // Load templates on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTemplates();
+        });
+
+        async function loadTemplates() {
+            try {
+                const response = await fetch('/api/templates');
+                if (!response.ok) throw new Error('Failed to load templates');
+
+                allTemplates = await response.json();
+                renderTemplates(allTemplates);
+            } catch (error) {
+                console.error('Error loading templates:', error);
+                alert('Failed to load templates');
+            }
+        }
+
+        function filterCategory(category) {
+            currentFilter = category;
+
+            // Update button styles
+            document.querySelectorAll('[id^="filter-"]').forEach(btn => {
+                btn.className = 'px-4 py-2 rounded-lg bg-gray-200 dark:bg-dark-card text-gray-700 dark:text-gray-300';
+            });
+            document.getElementById(`filter-${category}`).className = 'px-4 py-2 rounded-lg bg-blue-600 text-white';
+
+            // Filter templates
+            if (category === 'all') {
+                renderTemplates(allTemplates);
+            } else {
+                const filtered = allTemplates.filter(t => t.category === category);
+                renderTemplates(filtered);
+            }
+        }
+
+        function renderTemplates(templates) {
+            const container = document.getElementById('templates-container');
+            const emptyState = document.getElementById('empty-state');
+
+            if (templates.length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            container.innerHTML = templates.map(template => `
+                <div class="bg-white dark:bg-dark-card rounded-lg shadow-lg p-6 hover:shadow-xl transition">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-900 dark:text-white">${escapeHtml(template.name)}</h3>
+                            <span class="text-xs px-2 py-1 rounded-full ${getCategoryColor(template.category)} mt-2 inline-block">
+                                ${getCategoryLabel(template.category)}
+                            </span>
+                        </div>
+                        ${template.is_signature ? '<span class="text-yellow-500" title="Default Signature">⭐</span>' : ''}
+                    </div>
+
+                    ${template.subject ? `<p class="text-sm text-gray-600 dark:text-gray-400 mb-2"><strong>Subject:</strong> ${escapeHtml(template.subject)}</p>` : ''}
+
+                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-4 max-h-20 overflow-hidden">
+                        ${escapeHtml(template.body_text.substring(0, 100))}...
+                    </div>
+
+                    <div class="flex space-x-2">
+                        <button onclick="editTemplate('${template.id}')"
+                            class="flex-1 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50">
+                            Edit
+                        </button>
+                        <button onclick="deleteTemplate('${template.id}')"
+                            class="flex-1 px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-900/50">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getCategoryColor(category) {
+            const colors = {
+                signature: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
+                quick_reply: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
+                custom: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+            };
+            return colors[category] || colors.custom;
+        }
+
+        function getCategoryLabel(category) {
+            const labels = {
+                signature: 'Signature',
+                quick_reply: 'Quick Reply',
+                custom: 'Custom'
+            };
+            return labels[category] || category;
+        }
+
+        function showCreateModal() {
+            document.getElementById('modal-title').textContent = 'Create Template';
+            document.getElementById('templateForm').reset();
+            document.getElementById('template-id').value = '';
+            document.getElementById('preview').innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-sm">Type in the HTML body to see preview...</p>';
+            document.getElementById('templateModal').classList.remove('hidden');
+        }
+
+        async function editTemplate(id) {
+            const template = allTemplates.find(t => t.id === id);
+            if (!template) return;
+
+            document.getElementById('modal-title').textContent = 'Edit Template';
+            document.getElementById('template-id').value = template.id;
+            document.getElementById('template-name').value = template.name;
+            document.getElementById('template-category').value = template.category;
+            document.getElementById('template-subject').value = template.subject || '';
+            document.getElementById('template-body-html').value = template.body_html;
+            document.getElementById('template-body-text').value = template.body_text;
+            document.getElementById('template-is-signature').checked = template.is_signature;
+
+            updatePreview();
+            document.getElementById('templateModal').classList.remove('hidden');
+        }
+
+        async function saveTemplate(event) {
+            event.preventDefault();
+
+            const id = document.getElementById('template-id').value;
+            const data = {
+                name: document.getElementById('template-name').value,
+                category: document.getElementById('template-category').value,
+                subject: document.getElementById('template-subject').value,
+                body_html: document.getElementById('template-body-html').value,
+                body_text: document.getElementById('template-body-text').value,
+                variables: [],
+                is_signature: document.getElementById('template-is-signature').checked
+            };
+
+            try {
+                const url = id ? `/api/templates/${id}` : '/api/templates';
+                const method = id ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) throw new Error('Failed to save template');
+
+                closeModal();
+                loadTemplates();
+                alert(id ? 'Template updated!' : 'Template created!');
+            } catch (error) {
+                console.error('Error saving template:', error);
+                alert('Failed to save template');
+            }
+        }
+
+        async function deleteTemplate(id) {
+            if (!confirm('Are you sure you want to delete this template?')) return;
+
+            try {
+                const response = await fetch(`/api/templates/${id}`, { method: 'DELETE' });
+                if (!response.ok) throw new Error('Failed to delete template');
+
+                loadTemplates();
+                alert('Template deleted!');
+            } catch (error) {
+                console.error('Error deleting template:', error);
+                alert('Failed to delete template');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('templateModal').classList.add('hidden');
+        }
+
+        function updatePreview() {
+            const html = document.getElementById('template-body-html').value;
+            document.getElementById('preview').innerHTML = html || '<p class="text-gray-500 dark:text-gray-400 text-sm">Type in the HTML body to see preview...</p>';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

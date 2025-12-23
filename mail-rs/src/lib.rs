@@ -52,6 +52,7 @@ pub mod admin;
 pub mod antispam;
 pub mod api;
 pub mod authentication;
+pub mod auto_reply;
 pub mod config;
 pub mod error;
 pub mod imap;

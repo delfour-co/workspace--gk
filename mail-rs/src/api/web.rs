@@ -8,6 +8,7 @@ use axum::http::{StatusCode, header};
 use serde::Deserialize;
 use std::sync::Arc;
 
+use crate::api::auth::get_session_email;
 use crate::security::Authenticator;
 
 // Session cookie names
@@ -58,20 +59,6 @@ pub struct CreateUserForm {
 
 pub struct AppState {
     pub authenticator: Authenticator,
-}
-
-// Helper to extract email from cookie
-fn get_session_email(headers: &axum::http::HeaderMap) -> Option<String> {
-    let cookie_header = headers.get(header::COOKIE)?;
-    let cookies = cookie_header.to_str().ok()?;
-
-    for cookie in cookies.split(';') {
-        let cookie = cookie.trim();
-        if let Some(value) = cookie.strip_prefix(&format!("{}=", SESSION_COOKIE)) {
-            return Some(value.to_string());
-        }
-    }
-    None
 }
 
 // Login page (GET)
@@ -344,6 +331,12 @@ struct SettingsTemplate {
     total_users: i64,
 }
 
+#[derive(Template)]
+#[template(path = "email_templates.html")]
+struct TemplatesTemplate {
+    email: String,
+}
+
 // DNS configuration page
 pub async fn dns_page(
     headers: axum::http::HeaderMap,
@@ -410,4 +403,34 @@ pub async fn settings_page(
         version: env!("CARGO_PKG_VERSION").to_string(),
         total_users,
     }.into_response()
+}
+
+// Email templates page
+pub async fn templates_page(
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let email = match get_session_email(&headers) {
+        Some(e) => e,
+        None => return Redirect::to("/admin/login").into_response(),
+    };
+
+    TemplatesTemplate { email }.into_response()
+}
+
+#[derive(Template)]
+#[template(path = "auto_reply.html")]
+struct AutoReplyTemplate {
+    email: String,
+}
+
+// Auto-reply configuration page
+pub async fn auto_reply_page(
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let email = match get_session_email(&headers) {
+        Some(e) => e,
+        None => return Redirect::to("/admin/login").into_response(),
+    };
+
+    AutoReplyTemplate { email }.into_response()
 }
