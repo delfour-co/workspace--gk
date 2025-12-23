@@ -1,4 +1,5 @@
 use crate::authentication::{DkimValidator, SpfValidator};
+use crate::auto_reply::AutoReplySender;
 use crate::config::AuthenticationConfig;
 use crate::error::{MailError, Result};
 use crate::security::{AuthMechanism, Authenticator, TlsConfig};
@@ -140,6 +141,8 @@ pub struct SmtpSession {
     dkim_validator: Option<Arc<DkimValidator>>,
     client_ip: Option<IpAddr>,
     helo_domain: Option<String>,
+    // Auto-reply
+    auto_reply_sender: Option<Arc<AutoReplySender>>,
 }
 
 impl SmtpSession {
@@ -183,6 +186,7 @@ impl SmtpSession {
             dkim_validator,
             client_ip: None,
             helo_domain: None,
+            auto_reply_sender: None,
         }
     }
 
@@ -231,7 +235,14 @@ impl SmtpSession {
             dkim_validator,
             client_ip: None,
             helo_domain: None,
+            auto_reply_sender: None,
         }
+    }
+
+    /// Set auto-reply sender for this session
+    pub fn with_auto_reply(mut self, sender: Arc<AutoReplySender>) -> Self {
+        self.auto_reply_sender = Some(sender);
+        self
     }
 
     /// Handle SMTP session with comprehensive security checks and STARTTLS support
@@ -616,16 +627,63 @@ impl SmtpSession {
 
     async fn store_email(&self) -> Result<()> {
         if let Some(from) = &self.from {
+            // Extract subject from email data for auto-reply
+            let subject = self.extract_subject();
+
             for recipient in &self.to {
                 info!("Storing email from {} to {}", from, recipient);
                 let email_id = self.storage.store(recipient, &self.data).await?;
 
                 // Trigger summary generation asynchronously (fire-and-forget)
                 self.trigger_summary_generation(recipient, &email_id, from).await;
+
+                // Trigger auto-reply if configured
+                self.trigger_auto_reply(recipient, from, subject.as_deref()).await;
             }
             Ok(())
         } else {
             Err(MailError::SmtpProtocol("No sender specified".to_string()))
+        }
+    }
+
+    /// Extract subject from email data
+    fn extract_subject(&self) -> Option<String> {
+        let email_data = String::from_utf8_lossy(&self.data);
+        for line in email_data.lines() {
+            if line.starts_with("Subject:") {
+                return Some(line.trim_start_matches("Subject:").trim().to_string());
+            } else if line.is_empty() {
+                // Reached body, stop looking
+                break;
+            }
+        }
+        None
+    }
+
+    /// Trigger auto-reply if enabled for recipient
+    async fn trigger_auto_reply(&self, recipient: &str, sender: &str, subject: Option<&str>) {
+        if let Some(auto_reply) = &self.auto_reply_sender {
+            let auto_reply = auto_reply.clone();
+            let recipient = recipient.to_string();
+            let sender = sender.to_string();
+            let subject = subject.map(|s| s.to_string());
+
+            tokio::spawn(async move {
+                match auto_reply
+                    .process_incoming_message(&recipient, &sender, subject.as_deref())
+                    .await
+                {
+                    Ok(true) => {
+                        debug!("Auto-reply sent from {} to {}", recipient, sender);
+                    }
+                    Ok(false) => {
+                        debug!("Auto-reply not needed for {} -> {}", sender, recipient);
+                    }
+                    Err(e) => {
+                        warn!("Failed to send auto-reply: {}", e);
+                    }
+                }
+            });
         }
     }
 
