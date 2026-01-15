@@ -588,5 +588,5 @@ Les prompts détaillés sont dans `.claude/agents/`:
 - Les agents peuvent être combinés pour des tâches complexes
 - Toujours référencer la documentation pertinente
 - Respecter les conventions du projet (voir `.claude/rules.md`)
-- Suivre l'architecture globale (voir `.claude/context.md`)
+- Suivre l'architecture globale (voir `CLAUDE.md` à la racine)
 

@@ -3,25 +3,30 @@
 ## Project Overview
 
 GK is a self-hosted email and productivity platform built in Rust. It provides:
-- SMTP/IMAP email server (mail-rs)
-- AI runtime with MCP protocol (ai-runtime)
-- Reverse proxy with Let's Encrypt (proxy-rs)
-- CalDAV/CardDAV server (dav-rs)
-- Real-time chat (chat-rs)
-- Web UI (web-ui)
+- SMTP/IMAP email server (mail-rs) - **Production Ready**
+- AI runtime with MCP protocol (ai-runtime) - **Functional**
+- MCP mail server (mcp-mail-server) - **Functional**
+- Reverse proxy with Let's Encrypt (proxy-rs) - Planned
+- CalDAV/CardDAV server (dav-rs) - Planned
+- Real-time chat (chat-rs) - Planned
+- Web UI (web-ui) - Integrated in mail-rs
+
+## Project Statistics
+
+- **Lines of Code**: ~37,500 Rust
+- **Tests**: 427 (385 in mail-rs)
+- **Status**: Phase 2 Complete, Phase 3 in progress
 
 ## Quick Reference
 
 ### Codebase Structure
 ```
 gk/
-├── mail-rs/          # Email server (SMTP/IMAP)
-├── ai-runtime/       # AI orchestration
-├── proxy-rs/         # Reverse proxy
-├── dav-rs/           # CalDAV/CardDAV
-├── chat-rs/          # Real-time chat
-├── web-ui/           # Web interface
-└── docs/             # Documentation
+├── mail-rs/          # Email server (SMTP/IMAP) + Web UI + Admin Panel
+├── ai-runtime/       # AI orchestration with Ollama LLM
+├── mcp-mail-server/  # MCP server for email operations
+├── docs/             # Technical specifications
+└── .claude/          # Claude Code configuration & agents
 ```
 
 ### Quality Gates
