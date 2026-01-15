@@ -5,7 +5,7 @@ use axum::{
     http::{header::AUTHORIZATION, request::Parts, StatusCode},
     middleware::{self, Next},
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::{delete, get, patch, post, put},
     Json, Router,
 };
 use std::collections::HashMap;
@@ -16,10 +16,12 @@ use tokio::sync::RwLock;
 use tower_http::cors::{Any, CorsLayer};
 use tracing::{info, warn};
 
-use crate::api::{admin, auto_reply, templates, web};
+use crate::api::{admin, auto_reply, greylisting, monitoring, quotas, security_stats, templates, web};
 use crate::api::auth::{Claims, JwtConfig};
 use crate::api::handlers::{self, ApiError, AppState};
+use crate::antispam::greylist::GreylistManager;
 use crate::auto_reply::AutoReplyManager;
+use crate::quota::manager::QuotaManager;
 use crate::security::Authenticator;
 use crate::templates::TemplateManager;
 use sqlx::SqlitePool;
@@ -81,6 +83,10 @@ pub struct ApiServer {
     rate_limiter: Arc<RateLimiter>,
     template_manager: Arc<TemplateManager>,
     auto_reply_manager: Arc<AutoReplyManager>,
+    greylist_manager: Arc<GreylistManager>,
+    quota_manager: Arc<QuotaManager>,
+    security_stats_manager: Arc<security_stats::SecurityStatsManager>,
+    monitoring_manager: Arc<monitoring::MonitoringManager>,
     addr: String,
 }
 
@@ -117,11 +123,27 @@ impl ApiServer {
             sqlx::Error::Protocol(format!("Failed to initialize auto_reply tables: {}", e))
         })?;
 
+        // Create greylist manager
+        let greylist_manager = Arc::new(GreylistManager::new());
+
+        // Create quota manager
+        let quota_manager = Arc::new(QuotaManager::new());
+
+        // Create security stats manager
+        let security_stats_manager = Arc::new(security_stats::SecurityStatsManager::new());
+
+        // Create monitoring manager
+        let monitoring_manager = Arc::new(monitoring::MonitoringManager::new());
+
         Ok(Self {
             state,
             rate_limiter,
             template_manager,
             auto_reply_manager,
+            greylist_manager,
+            quota_manager,
+            security_stats_manager,
+            monitoring_manager,
             addr,
         })
     }
@@ -151,7 +173,6 @@ impl ApiServer {
             ));
 
         // Admin API routes (auth required + admin role check)
-        use axum::routing::{delete, patch, put};
         let admin_api_routes = Router::new()
             .route("/users", get(admin::list_users))
             .route("/users/:id", get(admin::get_user))
@@ -203,6 +224,63 @@ impl ApiServer {
             .route("/auto-reply/toggle", post(auto_reply::toggle_auto_reply))
             .with_state(auto_reply_state);
 
+        // Greylisting API routes (session-based auth via cookies)
+        let greylist_state = Arc::new(greylisting::GreylistState {
+            manager: self.greylist_manager.clone(),
+        });
+
+        let greylisting_api_routes = Router::new()
+            .route("/admin/greylisting/stats", get(greylisting::get_stats))
+            .route("/admin/greylisting/entries", get(greylisting::list_entries))
+            .route("/admin/greylisting/whitelist", get(greylisting::list_whitelist))
+            .route("/admin/greylisting/whitelist", post(greylisting::add_to_whitelist))
+            .route("/admin/greylisting/whitelist/:pattern", delete(greylisting::remove_from_whitelist))
+            .route("/admin/greylisting/blacklist", get(greylisting::list_blacklist))
+            .route("/admin/greylisting/blacklist", post(greylisting::add_to_blacklist))
+            .route("/admin/greylisting/blacklist/:pattern", delete(greylisting::remove_from_blacklist))
+            .route("/admin/greylisting/cleanup", post(greylisting::cleanup_entries))
+            .with_state(greylist_state);
+
+        // Quotas API routes (session-based auth via cookies)
+        let quota_state = Arc::new(quotas::QuotaState {
+            manager: self.quota_manager.clone(),
+        });
+
+        let quotas_api_routes = Router::new()
+            .route("/admin/quotas/stats", get(quotas::get_stats))
+            .route("/admin/quotas", get(quotas::list_quotas))
+            .route("/admin/quotas/defaults", get(quotas::get_defaults))
+            .route("/admin/quotas/defaults", put(quotas::update_defaults))
+            .route("/admin/quotas/reset-daily", post(quotas::reset_daily_counts))
+            .route("/admin/quotas/:email", get(quotas::get_quota))
+            .route("/admin/quotas/:email", put(quotas::update_quota))
+            .with_state(quota_state);
+
+        // Security stats API routes (session-based auth via cookies)
+        let security_state = Arc::new(security_stats::SecurityStatsState {
+            manager: self.security_stats_manager.clone(),
+        });
+
+        let security_api_routes = Router::new()
+            .route("/admin/security/stats", get(security_stats::get_stats))
+            .route("/admin/security/events", get(security_stats::get_events))
+            .route("/admin/security/config", put(security_stats::update_config))
+            .with_state(security_state);
+
+        // Monitoring API routes (session-based auth via cookies)
+        let monitoring_state = Arc::new(monitoring::MonitoringState {
+            manager: self.monitoring_manager.clone(),
+        });
+
+        let monitoring_api_routes = Router::new()
+            .route("/admin/monitoring/stats", get(monitoring::get_stats))
+            .route("/admin/monitoring/logs", get(monitoring::get_logs))
+            .route("/admin/monitoring/smtp/start", post(monitoring::start_smtp))
+            .route("/admin/monitoring/smtp/stop", post(monitoring::stop_smtp))
+            .route("/admin/monitoring/imap/start", post(monitoring::start_imap))
+            .route("/admin/monitoring/imap/stop", post(monitoring::stop_imap))
+            .with_state(monitoring_state);
+
         // Web routes (HTML pages)
         let web_state = Arc::new(web::AppState {
             authenticator: self.state.authenticator.clone(),
@@ -244,7 +322,11 @@ impl ApiServer {
                 public_routes
                     .merge(protected_routes)
                     .merge(template_api_routes)
-                    .merge(auto_reply_api_routes),
+                    .merge(auto_reply_api_routes)
+                    .merge(greylisting_api_routes)
+                    .merge(quotas_api_routes)
+                    .merge(security_api_routes)
+                    .merge(monitoring_api_routes),
             )
             .nest("/api/admin", admin_api_routes)
             .merge(web_routes)
