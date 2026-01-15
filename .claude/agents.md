@@ -538,6 +538,51 @@ pour le flux SMTP complet avec STARTTLS
 
 ---
 
+## Agents de Workflow Automatisé
+
+Ces 12 agents gèrent le cycle de développement complet. Voir `.claude/agents/README.md` pour la documentation complète.
+
+### Commandes rapides
+
+| Commande | Agent | Description |
+|----------|-------|-------------|
+| `/feature <issue>` | Feature Dev | Développe feature depuis GitHub issue → branch → PR |
+| `/bugfix <issue>` | Bug Fix | Corrige bug avec tests de régression obligatoires |
+| `/audit-quality` | Code Quality | Audit qualité code (smells, SOLID, patterns) |
+| `/audit-security` | Security Audit | Audit sécurité (OWASP, vulnérabilités) |
+| `/docs` | Documentation | Génère/met à jour documentation |
+| `/tests` | Test Coverage | Améliore couverture tests |
+| `/review <pr>` | Code Review | Review PR avant merge |
+| `/perf` | Performance | Analyse performance, bottlenecks |
+| `/deps` | Dependency | Gère dépendances, vulnérabilités |
+| `/release` | Release | Prépare release (version, changelog, tag) |
+| `/refactor` | Refactoring | Refactoring sécurisé du code |
+| `/devops` | DevOps | Docker, CI/CD, déploiement |
+
+### Workflow de développement
+
+```
+GitHub Issue → Feature/Bug Agent → Tests Agent → Quality/Security Audit → Code Review → PR → Release
+```
+
+### Fichiers agents
+
+Les prompts détaillés sont dans `.claude/agents/`:
+- `feature-dev.md` - Développement de features
+- `bug-fix.md` - Correction de bugs
+- `code-quality.md` - Audit qualité
+- `security-audit.md` - Audit sécurité
+- `documentation.md` - Documentation
+- `test-coverage.md` - Tests
+- `code-review.md` - Review de code
+- `performance.md` - Performance
+- `dependency.md` - Dépendances
+- `release.md` - Releases
+- `refactoring.md` - Refactoring
+- `devops.md` - DevOps
+
+---
+
 ## Notes
 
 - Les agents peuvent être combinés pour des tâches complexes
