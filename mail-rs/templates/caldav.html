@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CalDAV/CardDAV - GK Mail Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#1a1a1a',
+                            card: '#2d2d2d',
+                            border: '#404040',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-100 dark:bg-dark-bg min-h-screen">
+    <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <!-- Header -->
+        <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <div class="flex items-center space-x-3">
+                        <h1 class="text-xl font-bold text-gray-900 dark:text-white">
+                            GK Mail Admin
+                        </h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">{{ email }}</span>
+                        <a href="/admin/logout" class="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium">
+                            Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex">
+            <!-- Sidebar -->
+            <aside class="w-64 bg-white dark:bg-gray-800 min-h-[calc(100vh-4rem)] border-r border-gray-200 dark:border-gray-700">
+                <nav class="p-4 space-y-2">
+                    <a href="/admin/dashboard"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">Dashboard</span>
+                    </a>
+                    <a href="/admin/users"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="font-medium">Users</span>
+                    </a>
+                    <a href="/admin/templates"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="font-medium">Email Templates</span>
+                    </a>
+                    <a href="/admin/auto-reply"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="font-medium">Auto-Reply</span>
+                    </a>
+                    <a href="/admin/mfa"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="font-medium">MFA/2FA</span>
+                    </a>
+                    <a href="/admin/sieve"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="font-medium">Sieve Rules</span>
+                    </a>
+                    <a href="/admin/search"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="font-medium">Full-text Search</span>
+                    </a>
+                    <a href="/admin/spam"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="font-medium">Spam Scoring</span>
+                    </a>
+                    <a href="/admin/import-export"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="font-medium">Import/Export</span>
+                    </a>
+                    <a href="/admin/caldav"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+                        <span class="font-medium">CalDAV/CardDAV</span>
+                    </a>
+                    <a href="/admin/greylisting"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="font-medium">Greylisting</span>
+                    </a>
+                    <a href="/admin/quotas"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="font-medium">Quotas</span>
+                    </a>
+                    <a href="/admin/security"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="font-medium">Security</span>
+                    </a>
+                    <a href="/admin/monitoring"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="font-medium">Monitoring</span>
+                    </a>
+                    <a href="/admin/settings"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="font-medium">Settings</span>
+                    </a>
+                </nav>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="flex-1 p-8">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+                        CalDAV/CardDAV Management
+                    </h2>
+
+                    <!-- Statistics Cards -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                            <p class="text-sm text-blue-600 dark:text-blue-400">Calendars</p>
+                            <p id="stat-calendars" class="text-2xl font-bold text-blue-600 dark:text-blue-400">-</p>
+                        </div>
+                        <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                            <p class="text-sm text-green-600 dark:text-green-400">Events</p>
+                            <p id="stat-events" class="text-2xl font-bold text-green-600 dark:text-green-400">-</p>
+                        </div>
+                        <div class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
+                            <p class="text-sm text-purple-600 dark:text-purple-400">Address Books</p>
+                            <p id="stat-addressbooks" class="text-2xl font-bold text-purple-600 dark:text-purple-400">-</p>
+                        </div>
+                        <div class="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4">
+                            <p class="text-sm text-orange-600 dark:text-orange-400">Contacts</p>
+                            <p id="stat-contacts" class="text-2xl font-bold text-orange-600 dark:text-orange-400">-</p>
+                        </div>
+                    </div>
+
+                    <!-- Tabs -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
+                        <div class="border-b border-gray-200 dark:border-gray-700">
+                            <nav class="flex -mb-px">
+                                <button onclick="switchTab('calendars')" id="tab-calendars"
+                                        class="px-6 py-3 text-sm font-medium border-b-2 border-blue-500 text-blue-600 dark:text-blue-400">
+                                    Calendars
+                                </button>
+                                <button onclick="switchTab('addressbooks')" id="tab-addressbooks"
+                                        class="px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+                                    Address Books
+                                </button>
+                                <button onclick="switchTab('settings')" id="tab-settings"
+                                        class="px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+                                    Settings
+                                </button>
+                            </nav>
+                        </div>
+
+                        <!-- Calendars Tab -->
+                        <div id="content-calendars" class="p-6">
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <!-- Create Calendar Form -->
+                                <div class="space-y-6">
+                                    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                                        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Create Calendar</h3>
+                                        <form onsubmit="createCalendar(event)" class="space-y-3">
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Owner Email</label>
+                                                <input type="email" id="cal-email" required
+                                                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                                                <input type="text" id="cal-name" required
+                                                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Color</label>
+                                                <input type="color" id="cal-color" value="#3b82f6"
+                                                       class="w-full h-10 rounded-lg cursor-pointer">
+                                            </div>
+                                            <button type="submit" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                                Create Calendar
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                                        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Create Event</h3>
+                                        <form onsubmit="createEvent(event)" class="space-y-3">
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Calendar</label>
+                                                <select id="event-calendar" required
+                                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                                    <option value="">Select calendar...</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
+                                                <input type="text" id="event-summary" required
+                                                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start</label>
+                                                <input type="datetime-local" id="event-start" required
+                                                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End</label>
+                                                <input type="datetime-local" id="event-end" required
+                                                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                            </div>
+                                            <button type="submit" class="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                                                Create Event
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                <!-- Calendars List -->
+                                <div class="lg:col-span-2 space-y-4">
+                                    <div class="flex items-center space-x-2 mb-4">
+                                        <input type="email" id="filter-cal-email" placeholder="Filter by email..."
+                                               class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                        <button onclick="loadCalendars()" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500">
+                                            Filter
+                                        </button>
+                                    </div>
+                                    <div id="calendars-list" class="space-y-4">
+                                        <!-- Calendars will be inserted here -->
+                                    </div>
+                                    <div id="events-list" class="space-y-2 mt-6">
+                                        <!-- Events will be inserted here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Address Books Tab -->
+                        <div id="content-addressbooks" class="p-6 hidden">
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <!-- Create Address Book Form -->
+                                <div class="space-y-6">
+                                    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                                        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Create Address Book</h3>
+                                        <form onsubmit="createAddressbook(event)" class="space-y-3">
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Owner Email</label>
+                                                <input type="email" id="ab-email" required
+                                                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                                                <input type="text" id="ab-name" required
+                                                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                            </div>
+                                            <button type="submit" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                                Create Address Book
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                                        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Create Contact</h3>
+                                        <form onsubmit="createContact(event)" class="space-y-3">
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Address Book</label>
+                                                <select id="contact-addressbook" required
+                                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                                    <option value="">Select address book...</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
+                                                <input type="text" id="contact-name" required
+                                                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+                                                <input type="email" id="contact-email"
+                                                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone</label>
+                                                <input type="tel" id="contact-phone"
+                                                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                            </div>
+                                            <button type="submit" class="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                                                Create Contact
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                <!-- Address Books List -->
+                                <div class="lg:col-span-2 space-y-4">
+                                    <div class="flex items-center space-x-2 mb-4">
+                                        <input type="email" id="filter-ab-email" placeholder="Filter by email..."
+                                               class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                        <button onclick="loadAddressbooks()" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500">
+                                            Filter
+                                        </button>
+                                    </div>
+                                    <div id="addressbooks-list" class="space-y-4">
+                                        <!-- Address books will be inserted here -->
+                                    </div>
+                                    <div id="contacts-list" class="space-y-2 mt-6">
+                                        <!-- Contacts will be inserted here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Settings Tab -->
+                        <div id="content-settings" class="p-6 hidden">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Connection URLs</h3>
+                                    <div class="space-y-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">CalDAV URL</label>
+                                            <div class="flex space-x-2">
+                                                <input type="text" id="caldav-url" readonly
+                                                       class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white bg-gray-100 dark:bg-gray-800">
+                                                <button onclick="copyUrl('caldav-url')" class="px-3 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500">
+                                                    Copy
+                                                </button>
+                                            </div>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Use this URL in your calendar application</p>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">CardDAV URL</label>
+                                            <div class="flex space-x-2">
+                                                <input type="text" id="carddav-url" readonly
+                                                       class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white bg-gray-100 dark:bg-gray-800">
+                                                <button onclick="copyUrl('carddav-url')" class="px-3 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500">
+                                                    Copy
+                                                </button>
+                                            </div>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Use this URL in your contacts application</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Import Data</h3>
+                                    <form onsubmit="importData(event)" class="space-y-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Import Type</label>
+                                            <select id="import-type" onchange="updateImportTarget()"
+                                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                                <option value="ics">Calendar (ICS)</option>
+                                                <option value="vcf">Contacts (VCF)</option>
+                                            </select>
+                                        </div>
+                                        <div id="import-calendar-select">
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Calendar</label>
+                                            <select id="import-calendar"
+                                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                                <option value="">Select calendar...</option>
+                                            </select>
+                                        </div>
+                                        <div id="import-addressbook-select" class="hidden">
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Address Book</label>
+                                            <select id="import-addressbook"
+                                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                                <option value="">Select address book...</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">File</label>
+                                            <input type="file" id="import-file" accept=".ics,.vcf"
+                                                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                        </div>
+                                        <button type="submit" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                            Import
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStats();
+            loadCalendars();
+            loadAddressbooks();
+            document.getElementById('caldav-url').value = window.location.origin + '/caldav/';
+            document.getElementById('carddav-url').value = window.location.origin + '/carddav/';
+        });
+
+        function switchTab(tab) {
+            // Update tab buttons
+            document.querySelectorAll('[id^="tab-"]').forEach(btn => {
+                btn.classList.remove('border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+                btn.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+            });
+            document.getElementById('tab-' + tab).classList.add('border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+            document.getElementById('tab-' + tab).classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+
+            // Update content
+            document.querySelectorAll('[id^="content-"]').forEach(content => content.classList.add('hidden'));
+            document.getElementById('content-' + tab).classList.remove('hidden');
+        }
+
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/caldav/stats');
+                const result = await response.json();
+                if (result.success) {
+                    document.getElementById('stat-calendars').textContent = result.data.total_calendars;
+                    document.getElementById('stat-events').textContent = result.data.total_events;
+                    document.getElementById('stat-addressbooks').textContent = result.data.total_addressbooks;
+                    document.getElementById('stat-contacts').textContent = result.data.total_contacts;
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        async function loadCalendars() {
+            const email = document.getElementById('filter-cal-email').value;
+            let url = '/api/caldav/calendars';
+            if (email) url += '?email=' + encodeURIComponent(email);
+
+            try {
+                const response = await fetch(url);
+                const result = await response.json();
+                if (result.success) {
+                    const container = document.getElementById('calendars-list');
+                    const select = document.getElementById('event-calendar');
+                    const importSelect = document.getElementById('import-calendar');
+
+                    select.innerHTML = '<option value="">Select calendar...</option>';
+                    importSelect.innerHTML = '<option value="">Select calendar...</option>';
+
+                    if (result.data.length === 0) {
+                        container.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">No calendars found</p>';
+                    } else {
+                        container.innerHTML = result.data.map(cal => `
+                            <div class="p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-4 h-4 rounded" style="background-color: ${cal.color || '#3b82f6'}"></div>
+                                        <div>
+                                            <h4 class="font-medium text-gray-900 dark:text-white">${escapeHtml(cal.name)}</h4>
+                                            <p class="text-sm text-gray-500 dark:text-gray-400">${escapeHtml(cal.owner_email)}</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex space-x-2">
+                                        <button onclick="loadEvents('${cal.id}')" class="px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded hover:bg-blue-200">
+                                            View Events
+                                        </button>
+                                        <button onclick="deleteCalendar('${cal.id}')" class="px-3 py-1 text-sm bg-red-100 dark:bg-red-900/30 text-red-600 rounded hover:bg-red-200">
+                                            Delete
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('');
+
+                        result.data.forEach(cal => {
+                            const option = document.createElement('option');
+                            option.value = cal.id;
+                            option.textContent = `${cal.name} (${cal.owner_email})`;
+                            select.appendChild(option);
+                            importSelect.appendChild(option.cloneNode(true));
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading calendars:', error);
+            }
+        }
+
+        async function loadEvents(calendarId) {
+            try {
+                const response = await fetch('/api/caldav/calendars/' + calendarId + '/events');
+                const result = await response.json();
+                if (result.success) {
+                    const container = document.getElementById('events-list');
+                    if (result.data.length === 0) {
+                        container.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">No events in this calendar</p>';
+                    } else {
+                        container.innerHTML = '<h4 class="font-medium text-gray-900 dark:text-white mb-2">Events</h4>' +
+                            result.data.map(event => `
+                                <div class="p-3 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center justify-between">
+                                    <div>
+                                        <span class="font-medium text-gray-900 dark:text-white">${escapeHtml(event.summary || 'Untitled')}</span>
+                                        <span class="text-sm text-gray-500 dark:text-gray-400 ml-2">${formatDate(event.dtstart)} - ${formatDate(event.dtend)}</span>
+                                    </div>
+                                    <button onclick="deleteEvent('${event.id}')" class="px-2 py-1 text-xs bg-red-100 dark:bg-red-900/30 text-red-600 rounded hover:bg-red-200">
+                                        Delete
+                                    </button>
+                                </div>
+                            `).join('');
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading events:', error);
+            }
+        }
+
+        async function loadAddressbooks() {
+            const email = document.getElementById('filter-ab-email').value;
+            let url = '/api/caldav/addressbooks';
+            if (email) url += '?email=' + encodeURIComponent(email);
+
+            try {
+                const response = await fetch(url);
+                const result = await response.json();
+                if (result.success) {
+                    const container = document.getElementById('addressbooks-list');
+                    const select = document.getElementById('contact-addressbook');
+                    const importSelect = document.getElementById('import-addressbook');
+
+                    select.innerHTML = '<option value="">Select address book...</option>';
+                    importSelect.innerHTML = '<option value="">Select address book...</option>';
+
+                    if (result.data.length === 0) {
+                        container.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">No address books found</p>';
+                    } else {
+                        container.innerHTML = result.data.map(ab => `
+                            <div class="p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="font-medium text-gray-900 dark:text-white">${escapeHtml(ab.name)}</h4>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">${escapeHtml(ab.owner_email)}</p>
+                                    </div>
+                                    <div class="flex space-x-2">
+                                        <button onclick="loadContacts('${ab.id}')" class="px-3 py-1 text-sm bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded hover:bg-purple-200">
+                                            View Contacts
+                                        </button>
+                                        <button onclick="deleteAddressbook('${ab.id}')" class="px-3 py-1 text-sm bg-red-100 dark:bg-red-900/30 text-red-600 rounded hover:bg-red-200">
+                                            Delete
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('');
+
+                        result.data.forEach(ab => {
+                            const option = document.createElement('option');
+                            option.value = ab.id;
+                            option.textContent = `${ab.name} (${ab.owner_email})`;
+                            select.appendChild(option);
+                            importSelect.appendChild(option.cloneNode(true));
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading address books:', error);
+            }
+        }
+
+        async function loadContacts(addressbookId) {
+            try {
+                const response = await fetch('/api/caldav/addressbooks/' + addressbookId + '/contacts');
+                const result = await response.json();
+                if (result.success) {
+                    const container = document.getElementById('contacts-list');
+                    if (result.data.length === 0) {
+                        container.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">No contacts in this address book</p>';
+                    } else {
+                        container.innerHTML = '<h4 class="font-medium text-gray-900 dark:text-white mb-2">Contacts</h4>' +
+                            result.data.map(contact => `
+                                <div class="p-3 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center justify-between">
+                                    <div>
+                                        <span class="font-medium text-gray-900 dark:text-white">${escapeHtml(contact.fn_name || 'Unknown')}</span>
+                                        <span class="text-sm text-gray-500 dark:text-gray-400 ml-2">${escapeHtml(contact.email || '')}</span>
+                                    </div>
+                                    <button onclick="deleteContact('${contact.id}')" class="px-2 py-1 text-xs bg-red-100 dark:bg-red-900/30 text-red-600 rounded hover:bg-red-200">
+                                        Delete
+                                    </button>
+                                </div>
+                            `).join('');
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading contacts:', error);
+            }
+        }
+
+        async function createCalendar(e) {
+            e.preventDefault();
+            const body = {
+                email: document.getElementById('cal-email').value,
+                name: document.getElementById('cal-name').value,
+                color: document.getElementById('cal-color').value
+            };
+            try {
+                const response = await fetch('/api/caldav/calendars', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Calendar created successfully');
+                    document.getElementById('cal-email').value = '';
+                    document.getElementById('cal-name').value = '';
+                    loadCalendars();
+                    loadStats();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Failed to create calendar');
+            }
+        }
+
+        async function createEvent(e) {
+            e.preventDefault();
+            const calendarId = document.getElementById('event-calendar').value;
+            const body = {
+                summary: document.getElementById('event-summary').value,
+                dtstart: new Date(document.getElementById('event-start').value).toISOString(),
+                dtend: new Date(document.getElementById('event-end').value).toISOString()
+            };
+            try {
+                const response = await fetch('/api/caldav/calendars/' + calendarId + '/events', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Event created successfully');
+                    document.getElementById('event-summary').value = '';
+                    document.getElementById('event-start').value = '';
+                    document.getElementById('event-end').value = '';
+                    loadEvents(calendarId);
+                    loadStats();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Failed to create event');
+            }
+        }
+
+        async function createAddressbook(e) {
+            e.preventDefault();
+            const body = {
+                email: document.getElementById('ab-email').value,
+                name: document.getElementById('ab-name').value
+            };
+            try {
+                const response = await fetch('/api/caldav/addressbooks', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Address book created successfully');
+                    document.getElementById('ab-email').value = '';
+                    document.getElementById('ab-name').value = '';
+                    loadAddressbooks();
+                    loadStats();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Failed to create address book');
+            }
+        }
+
+        async function createContact(e) {
+            e.preventDefault();
+            const addressbookId = document.getElementById('contact-addressbook').value;
+            const body = {
+                full_name: document.getElementById('contact-name').value,
+                email: document.getElementById('contact-email').value || null,
+                phone: document.getElementById('contact-phone').value || null
+            };
+            try {
+                const response = await fetch('/api/caldav/addressbooks/' + addressbookId + '/contacts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Contact created successfully');
+                    document.getElementById('contact-name').value = '';
+                    document.getElementById('contact-email').value = '';
+                    document.getElementById('contact-phone').value = '';
+                    loadContacts(addressbookId);
+                    loadStats();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Failed to create contact');
+            }
+        }
+
+        async function deleteCalendar(id) {
+            if (!confirm('Delete this calendar and all its events?')) return;
+            try {
+                const response = await fetch('/api/caldav/calendars/' + id, { method: 'DELETE' });
+                const result = await response.json();
+                if (result.success) {
+                    loadCalendars();
+                    loadStats();
+                    document.getElementById('events-list').innerHTML = '';
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Failed to delete calendar');
+            }
+        }
+
+        async function deleteEvent(id) {
+            if (!confirm('Delete this event?')) return;
+            try {
+                const response = await fetch('/api/caldav/events/' + id, { method: 'DELETE' });
+                const result = await response.json();
+                if (result.success) {
+                    loadStats();
+                    document.getElementById('events-list').innerHTML = '';
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Failed to delete event');
+            }
+        }
+
+        async function deleteAddressbook(id) {
+            if (!confirm('Delete this address book and all its contacts?')) return;
+            try {
+                const response = await fetch('/api/caldav/addressbooks/' + id, { method: 'DELETE' });
+                const result = await response.json();
+                if (result.success) {
+                    loadAddressbooks();
+                    loadStats();
+                    document.getElementById('contacts-list').innerHTML = '';
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Failed to delete address book');
+            }
+        }
+
+        async function deleteContact(id) {
+            if (!confirm('Delete this contact?')) return;
+            try {
+                const response = await fetch('/api/caldav/contacts/' + id, { method: 'DELETE' });
+                const result = await response.json();
+                if (result.success) {
+                    loadStats();
+                    document.getElementById('contacts-list').innerHTML = '';
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Failed to delete contact');
+            }
+        }
+
+        function updateImportTarget() {
+            const type = document.getElementById('import-type').value;
+            document.getElementById('import-calendar-select').classList.toggle('hidden', type !== 'ics');
+            document.getElementById('import-addressbook-select').classList.toggle('hidden', type !== 'vcf');
+        }
+
+        async function importData(e) {
+            e.preventDefault();
+            const type = document.getElementById('import-type').value;
+            const file = document.getElementById('import-file').files[0];
+            if (!file) {
+                alert('Please select a file');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async () => {
+                let url, targetId;
+                if (type === 'ics') {
+                    targetId = document.getElementById('import-calendar').value;
+                    if (!targetId) { alert('Please select a calendar'); return; }
+                    url = '/api/caldav/calendars/' + targetId + '/import';
+                } else {
+                    targetId = document.getElementById('import-addressbook').value;
+                    if (!targetId) { alert('Please select an address book'); return; }
+                    url = '/api/caldav/addressbooks/' + targetId + '/import';
+                }
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ data: reader.result })
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        alert('Import successful');
+                        loadStats();
+                        if (type === 'ics') loadEvents(targetId);
+                        else loadContacts(targetId);
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Failed to import');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function copyUrl(id) {
+            const input = document.getElementById(id);
+            input.select();
+            document.execCommand('copy');
+            alert('Copied to clipboard');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+
+        function formatDate(dt) {
+            if (!dt) return '-';
+            return new Date(dt).toLocaleString();
+        }
+    </script>
+</body>
+</html>

@@ -40,6 +40,26 @@ jsonwebtoken = "9"
 argon2 = "0.5"
 base64 = "0.21"
 
+# MFA/TOTP
+totp-rs = { version = "5.6", features = ["qr", "gen_secret"] }
+data-encoding = "2.6"
+
+# Full-text Search
+tantivy = "0.22"
+
+# Spam/Text Processing
+rust-stemmers = "1.2"
+
+# Regex for Sieve pattern matching
+regex = "1.10"
+
+# CalDAV/CardDAV
+icalendar = "0.16"
+
+# Import/Export
+zip = "2.2"
+flate2 = "1.0"
+
 # Database
 sqlx = { workspace = true }
 

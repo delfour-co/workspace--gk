@@ -56,13 +56,20 @@ pub mod auto_reply;
 pub mod config;
 pub mod error;
 pub mod imap;
+pub mod import_export;
+pub mod mfa;
 pub mod mime;
 pub mod quota;
+pub mod search;
 pub mod security;
+pub mod sieve;
 pub mod smtp;
+pub mod spam;
 pub mod storage;
 pub mod templates;
 pub mod utils;
+pub mod migration;
+pub mod caldav;
 
 // Re-export commonly used types
 pub use config::Config;

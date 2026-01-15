@@ -16,13 +16,19 @@ use tokio::sync::RwLock;
 use tower_http::cors::{Any, CorsLayer};
 use tracing::{info, warn};
 
-use crate::api::{admin, auto_reply, greylisting, monitoring, quotas, security_stats, templates, web};
+use crate::api::{admin, auto_reply, caldav, greylisting, import_export, mfa, monitoring, quotas, search, security_stats, sieve, spam, templates, web};
 use crate::api::auth::{Claims, JwtConfig};
 use crate::api::handlers::{self, ApiError, AppState};
 use crate::antispam::greylist::GreylistManager;
 use crate::auto_reply::AutoReplyManager;
+use crate::caldav::CalDavManager;
+use crate::import_export::ImportExportManager;
+use crate::mfa::MfaManager;
 use crate::quota::manager::QuotaManager;
+use crate::search::SearchManager;
 use crate::security::Authenticator;
+use crate::sieve::SieveManager;
+use crate::spam::SpamManager;
 use crate::templates::TemplateManager;
 use sqlx::SqlitePool;
 
@@ -87,6 +93,12 @@ pub struct ApiServer {
     quota_manager: Arc<QuotaManager>,
     security_stats_manager: Arc<security_stats::SecurityStatsManager>,
     monitoring_manager: Arc<monitoring::MonitoringManager>,
+    mfa_manager: Arc<MfaManager>,
+    sieve_manager: Arc<SieveManager>,
+    search_manager: Arc<SearchManager>,
+    spam_manager: Arc<SpamManager>,
+    import_export_manager: Arc<ImportExportManager>,
+    caldav_manager: Arc<CalDavManager>,
     addr: String,
 }
 
@@ -118,7 +130,7 @@ impl ApiServer {
         })?;
 
         // Create auto-reply manager
-        let auto_reply_manager = Arc::new(AutoReplyManager::new(db));
+        let auto_reply_manager = Arc::new(AutoReplyManager::new(db.clone()));
         auto_reply_manager.init_db().await.map_err(|e| {
             sqlx::Error::Protocol(format!("Failed to initialize auto_reply tables: {}", e))
         })?;
@@ -135,6 +147,46 @@ impl ApiServer {
         // Create monitoring manager
         let monitoring_manager = Arc::new(monitoring::MonitoringManager::new());
 
+        // Create MFA manager
+        let mfa_manager = Arc::new(MfaManager::new(db.clone()));
+        mfa_manager.init_db().await.map_err(|e| {
+            sqlx::Error::Protocol(format!("Failed to initialize MFA tables: {}", e))
+        })?;
+
+        // Create Sieve manager
+        let sieve_manager = Arc::new(SieveManager::new(db.clone()));
+        sieve_manager.init_db().await.map_err(|e| {
+            sqlx::Error::Protocol(format!("Failed to initialize Sieve tables: {}", e))
+        })?;
+
+        // Create Search manager
+        let search_manager = Arc::new(SearchManager::new());
+        // Initialize search index (optional - may fail if path doesn't exist)
+        if let Err(e) = search_manager.init().await {
+            tracing::warn!("Failed to initialize search index: {} - search will be disabled", e);
+        }
+
+        // Create Spam manager
+        let spam_manager = Arc::new(SpamManager::new(db));
+        spam_manager.init_db().await.map_err(|e| {
+            sqlx::Error::Protocol(format!("Failed to initialize spam tables: {}", e))
+        })?;
+
+        // Create Import/Export manager
+        let export_path = std::path::PathBuf::from(&state.maildir_root).join("exports");
+        let maildir_path = std::path::PathBuf::from(&state.maildir_root);
+        let import_export_manager = Arc::new(ImportExportManager::new(export_path, maildir_path));
+        import_export_manager.init().await.map_err(|e| {
+            sqlx::Error::Protocol(format!("Failed to initialize import/export: {}", e))
+        })?;
+
+        // Create CalDAV/CardDAV manager
+        let caldav_db = SqlitePool::connect(&database_url).await?;
+        let caldav_manager = Arc::new(CalDavManager::new(caldav_db));
+        caldav_manager.init_db().await.map_err(|e| {
+            sqlx::Error::Protocol(format!("Failed to initialize CalDAV tables: {}", e))
+        })?;
+
         Ok(Self {
             state,
             rate_limiter,
@@ -144,6 +196,12 @@ impl ApiServer {
             quota_manager,
             security_stats_manager,
             monitoring_manager,
+            mfa_manager,
+            sieve_manager,
+            search_manager,
+            spam_manager,
+            import_export_manager,
+            caldav_manager,
             addr,
         })
     }
@@ -281,6 +339,125 @@ impl ApiServer {
             .route("/admin/monitoring/imap/stop", post(monitoring::stop_imap))
             .with_state(monitoring_state);
 
+        // MFA API routes (session-based auth via cookies)
+        let mfa_state = Arc::new(mfa::MfaState {
+            manager: self.mfa_manager.clone(),
+        });
+
+        let mfa_api_routes = Router::new()
+            .route("/mfa/status", get(mfa::get_status))
+            .route("/mfa/setup", post(mfa::start_setup))
+            .route("/mfa/verify", post(mfa::complete_setup))
+            .route("/mfa/disable", post(mfa::disable))
+            .route("/mfa/backup-codes", post(mfa::regenerate_backup_codes))
+            .route("/mfa/check", post(mfa::verify_login))
+            .route("/mfa/required/:email", get(mfa::is_mfa_required))
+            .with_state(mfa_state);
+
+        // Sieve API routes (session-based auth via cookies)
+        let sieve_state = Arc::new(sieve::SieveState {
+            manager: self.sieve_manager.clone(),
+        });
+
+        let sieve_api_routes = Router::new()
+            .route("/sieve/scripts", get(sieve::list_scripts))
+            .route("/sieve/scripts", post(sieve::create_script))
+            .route("/sieve/scripts/active", get(sieve::get_active_script))
+            .route("/sieve/scripts/:id", get(sieve::get_script))
+            .route("/sieve/scripts/:id", put(sieve::update_script))
+            .route("/sieve/scripts/:id", delete(sieve::delete_script))
+            .route("/sieve/scripts/:id/activate", post(sieve::activate_script))
+            .route("/sieve/scripts/:id/deactivate", post(sieve::deactivate_script))
+            .route("/sieve/validate", post(sieve::validate_script))
+            .route("/sieve/logs", get(sieve::get_logs))
+            .route("/sieve/logs", delete(sieve::clear_logs))
+            .with_state(sieve_state);
+
+        // Search API routes (session-based auth via cookies)
+        let search_state = Arc::new(search::SearchState {
+            search_manager: self.search_manager.clone(),
+        });
+
+        let search_api_routes = Router::new()
+            .route("/search", get(search::search_emails))
+            .route("/search/status", get(search::get_index_status))
+            .route("/search/reindex", post(search::reindex))
+            .route("/search/reindex-all", post(search::reindex_all))
+            .route("/search/clear", delete(search::clear_index))
+            .with_state(search_state);
+
+        // Spam API routes (session-based auth via cookies)
+        let spam_state = Arc::new(spam::SpamState {
+            spam_manager: self.spam_manager.clone(),
+        });
+
+        let spam_api_routes = Router::new()
+            .route("/spam/config", get(spam::get_config))
+            .route("/spam/config", put(spam::update_config))
+            .route("/spam/stats", get(spam::get_stats))
+            .route("/spam/rules", get(spam::list_rules))
+            .route("/spam/rules", post(spam::create_rule))
+            .route("/spam/rules/:id", put(spam::update_rule))
+            .route("/spam/rules/:id", delete(spam::delete_rule))
+            .route("/spam/test", post(spam::test_message))
+            .route("/spam/learn/spam", post(spam::learn_spam))
+            .route("/spam/learn/ham", post(spam::learn_ham))
+            .route("/spam/logs", get(spam::get_logs))
+            .route("/spam/logs", delete(spam::clear_logs))
+            .with_state(spam_state);
+
+        // Import/Export API routes (session-based auth via cookies)
+        let import_export_state = Arc::new(import_export::ImportExportState {
+            manager: self.import_export_manager.clone(),
+        });
+
+        let import_export_api_routes = Router::new()
+            .route("/import-export/stats", get(import_export::get_stats))
+            .route("/import-export/export", post(import_export::start_export))
+            .route("/import-export/export/:job_id", get(import_export::get_export_job))
+            .route("/import-export/export/:job_id/download", get(import_export::download_export))
+            .route("/import-export/export/:job_id", delete(import_export::delete_export))
+            .route("/import-export/exports", get(import_export::list_export_jobs))
+            .route("/import-export/import", post(import_export::start_import))
+            .route("/import-export/import/:job_id", get(import_export::get_import_job))
+            .route("/import-export/imports", get(import_export::list_import_jobs))
+            .route("/import-export/:job_type/:job_id/cancel", post(import_export::cancel_job))
+            .with_state(import_export_state);
+
+        // CalDAV/CardDAV API routes (session-based auth via cookies)
+        let caldav_state = Arc::new(caldav::CalDavState {
+            manager: self.caldav_manager.clone(),
+        });
+
+        let caldav_api_routes = Router::new()
+            .route("/caldav/stats", get(caldav::get_stats))
+            // Calendars
+            .route("/caldav/calendars", get(caldav::list_calendars))
+            .route("/caldav/calendars", post(caldav::create_calendar))
+            .route("/caldav/calendars/:calendar_id", get(caldav::get_calendar))
+            .route("/caldav/calendars/:calendar_id", put(caldav::update_calendar))
+            .route("/caldav/calendars/:calendar_id", delete(caldav::delete_calendar))
+            // Events
+            .route("/caldav/calendars/:calendar_id/events", get(caldav::list_events))
+            .route("/caldav/calendars/:calendar_id/events", post(caldav::create_event))
+            .route("/caldav/calendars/:calendar_id/import", post(caldav::import_ics))
+            .route("/caldav/events/:event_id", get(caldav::get_event))
+            .route("/caldav/events/:event_id", put(caldav::update_event))
+            .route("/caldav/events/:event_id", delete(caldav::delete_event))
+            // Address Books
+            .route("/caldav/addressbooks", get(caldav::list_addressbooks))
+            .route("/caldav/addressbooks", post(caldav::create_addressbook))
+            .route("/caldav/addressbooks/:addressbook_id", get(caldav::get_addressbook))
+            .route("/caldav/addressbooks/:addressbook_id", delete(caldav::delete_addressbook))
+            // Contacts
+            .route("/caldav/addressbooks/:addressbook_id/contacts", get(caldav::list_contacts))
+            .route("/caldav/addressbooks/:addressbook_id/contacts", post(caldav::create_contact))
+            .route("/caldav/addressbooks/:addressbook_id/import", post(caldav::import_vcf))
+            .route("/caldav/contacts/:contact_id", get(caldav::get_contact))
+            .route("/caldav/contacts/:contact_id", put(caldav::update_contact))
+            .route("/caldav/contacts/:contact_id", delete(caldav::delete_contact))
+            .with_state(caldav_state);
+
         // Web routes (HTML pages)
         let web_state = Arc::new(web::AppState {
             authenticator: self.state.authenticator.clone(),
@@ -300,6 +477,12 @@ impl ApiServer {
             .route("/admin/quotas", get(web::quotas_page))
             .route("/admin/security", get(web::security_page))
             .route("/admin/monitoring", get(web::monitoring_page))
+            .route("/admin/mfa", get(web::mfa_page))
+            .route("/admin/sieve", get(web::sieve_page))
+            .route("/admin/search", get(web::search_page))
+            .route("/admin/spam", get(web::spam_page))
+            .route("/admin/import-export", get(web::import_export_page))
+            .route("/admin/caldav", get(web::caldav_page))
             .route("/admin/dns", get(web::dns_page))
             .route("/admin/diagnostics", get(web::diagnostics_page))
             .route("/admin/backups", get(web::backups_page))
@@ -326,7 +509,13 @@ impl ApiServer {
                     .merge(greylisting_api_routes)
                     .merge(quotas_api_routes)
                     .merge(security_api_routes)
-                    .merge(monitoring_api_routes),
+                    .merge(monitoring_api_routes)
+                    .merge(mfa_api_routes)
+                    .merge(sieve_api_routes)
+                    .merge(search_api_routes)
+                    .merge(spam_api_routes)
+                    .merge(import_export_api_routes)
+                    .merge(caldav_api_routes),
             )
             .nest("/api/admin", admin_api_routes)
             .merge(web_routes)

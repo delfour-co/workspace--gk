@@ -1,0 +1,537 @@
+{% extends "base.html" %}
+
+{% block title %}Sieve Rules - GK Mail Admin{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <h1 class="text-xl font-bold text-gray-900 dark:text-white">
+                        GK Mail Admin
+                    </h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">{{ email }}</span>
+                    <a href="/admin/logout" class="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium">
+                        Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white dark:bg-gray-800 min-h-[calc(100vh-4rem)] border-r border-gray-200 dark:border-gray-700">
+            <nav class="p-4 space-y-2">
+                <a href="/admin/dashboard"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">📊</span>
+                    <span class="font-medium">Dashboard</span>
+                </a>
+                <a href="/admin/users"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">👥</span>
+                    <span class="font-medium">Users</span>
+                </a>
+                <a href="/admin/templates"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">📝</span>
+                    <span class="font-medium">Email Templates</span>
+                </a>
+                <a href="/admin/auto-reply"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔄</span>
+                    <span class="font-medium">Auto-Reply</span>
+                </a>
+                <a href="/admin/sieve"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+                    <span class="text-xl">📋</span>
+                    <span class="font-medium">Sieve Rules</span>
+                </a>
+                <a href="/admin/search"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔍</span>
+                    <span class="font-medium">Full-text Search</span>
+                </a>
+                <a href="/chat/app"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">💬</span>
+                    <span class="font-medium">Email Chat</span>
+                </a>
+                <a href="/admin/security"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🛡️</span>
+                    <span class="font-medium">Security</span>
+                </a>
+                <a href="/admin/mfa"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔐</span>
+                    <span class="font-medium">MFA/2FA</span>
+                </a>
+                <a href="/admin/greylisting"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🚦</span>
+                    <span class="font-medium">Greylisting</span>
+                </a>
+                <a href="/admin/quotas"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">📊</span>
+                    <span class="font-medium">Quotas</span>
+                </a>
+                <a href="/admin/dns"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🌐</span>
+                    <span class="font-medium">DNS Config</span>
+                </a>
+                <a href="/admin/diagnostics"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔍</span>
+                    <span class="font-medium">Diagnostics</span>
+                </a>
+                <a href="/admin/monitoring"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">📈</span>
+                    <span class="font-medium">Monitoring</span>
+                </a>
+                <a href="/admin/backups"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">💾</span>
+                    <span class="font-medium">Backups</span>
+                </a>
+                <a href="/admin/ssl"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">🔒</span>
+                    <span class="font-medium">SSL Certificates</span>
+                </a>
+                <a href="/admin/settings"
+                   class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl">⚙️</span>
+                    <span class="font-medium">Settings</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-8">
+            <div class="max-w-5xl mx-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
+                            Sieve Email Filtering Rules
+                        </h2>
+                        <p class="text-gray-600 dark:text-gray-400 mt-1">
+                            Create server-side email filtering rules using Sieve syntax
+                        </p>
+                    </div>
+                    <button onclick="showCreateModal()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        + New Script
+                    </button>
+                </div>
+
+                <!-- Scripts List -->
+                <div id="scripts-list" class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                    <div class="p-6 text-center text-gray-500 dark:text-gray-400">
+                        Loading scripts...
+                    </div>
+                </div>
+
+                <!-- Help Section -->
+                <div class="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Sieve Quick Reference</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-medium text-gray-900 dark:text-white mb-2">Common Conditions</h4>
+                            <pre class="text-sm bg-gray-50 dark:bg-gray-900 p-3 rounded-lg overflow-x-auto text-gray-700 dark:text-gray-300">
+# Match header content
+header :contains "Subject" "newsletter"
+
+# Match sender domain
+address :domain "From" "example.com"
+
+# Match message size
+size :over 5M
+
+# Combine conditions
+allof (
+  header :contains "From" "boss",
+  header :contains "Subject" "urgent"
+)</pre>
+                        </div>
+                        <div>
+                            <h4 class="font-medium text-gray-900 dark:text-white mb-2">Common Actions</h4>
+                            <pre class="text-sm bg-gray-50 dark:bg-gray-900 p-3 rounded-lg overflow-x-auto text-gray-700 dark:text-gray-300">
+# File into folder
+fileinto "Newsletters";
+
+# Discard message
+discard;
+
+# Redirect to another address
+redirect "other@example.com";
+
+# Keep message (default)
+keep;
+
+# Stop processing
+stop;</pre>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h4 class="font-medium text-gray-900 dark:text-white mb-2">Example Script</h4>
+                        <pre class="text-sm bg-gray-50 dark:bg-gray-900 p-3 rounded-lg overflow-x-auto text-gray-700 dark:text-gray-300">
+require "fileinto";
+
+# File newsletters into separate folder
+if header :contains "Subject" "newsletter" {
+    fileinto "Newsletters";
+    stop;
+}
+
+# Discard spam from known sender
+if address :is "From" "spam@example.com" {
+    discard;
+    stop;
+}
+
+# Move large attachments to separate folder
+if size :over 10M {
+    fileinto "Large Files";
+}</pre>
+                    </div>
+                </div>
+
+                <!-- Execution Logs -->
+                <div class="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Recent Execution Logs</h3>
+                        <button onclick="clearLogs()" class="text-sm text-red-600 dark:text-red-400 hover:text-red-700">
+                            Clear Logs
+                        </button>
+                    </div>
+                    <div id="logs-list" class="p-6">
+                        <p class="text-center text-gray-500 dark:text-gray-400">Loading logs...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- Create/Edit Modal -->
+<div id="scriptModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <h3 id="modal-title" class="text-lg font-medium text-gray-900 dark:text-white">New Sieve Script</h3>
+            <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <form id="scriptForm" onsubmit="saveScript(event)" class="p-6 space-y-4">
+            <input type="hidden" id="script-id" value="">
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Script Name</label>
+                <input type="text" id="script-name" required
+                       class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                       placeholder="My Filter Rules">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Script Content</label>
+                <textarea id="script-content" required rows="15"
+                          class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white font-mono text-sm"
+                          placeholder='require "fileinto";
+
+if header :contains "Subject" "newsletter" {
+    fileinto "Newsletters";
+}'></textarea>
+            </div>
+
+            <div class="flex items-center">
+                <input type="checkbox" id="script-activate" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                <label for="script-activate" class="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                    Activate this script (deactivates other scripts)
+                </label>
+            </div>
+
+            <div id="validation-result" class="hidden p-3 rounded-lg"></div>
+
+            <div class="flex justify-between">
+                <button type="button" onclick="validateScript()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+                    Validate Script
+                </button>
+                <div class="space-x-3">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        Save Script
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let currentEditId = null;
+
+async function loadScripts() {
+    try {
+        const response = await fetch('/api/sieve/scripts');
+        const scripts = await response.json();
+
+        const container = document.getElementById('scripts-list');
+
+        if (scripts.length === 0) {
+            container.innerHTML = `
+                <div class="p-6 text-center text-gray-500 dark:text-gray-400">
+                    <p class="mb-4">No Sieve scripts found.</p>
+                    <button onclick="showCreateModal()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        Create Your First Script
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = scripts.map(script => `
+            <div class="p-4 border-b border-gray-200 dark:border-gray-700 last:border-0 flex justify-between items-center">
+                <div class="flex-1">
+                    <div class="flex items-center space-x-3">
+                        <h4 class="font-medium text-gray-900 dark:text-white">${escapeHtml(script.name)}</h4>
+                        ${script.is_active ? '<span class="px-2 py-0.5 text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 rounded-full">Active</span>' : ''}
+                    </div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        Updated: ${new Date(script.updated_at).toLocaleString()}
+                    </p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    ${!script.is_active ? `
+                        <button onclick="activateScript('${script.id}')" class="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700">
+                            Activate
+                        </button>
+                    ` : `
+                        <button onclick="deactivateScript('${script.id}')" class="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-700">
+                            Deactivate
+                        </button>
+                    `}
+                    <button onclick="editScript('${script.id}')" class="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-700">
+                        Edit
+                    </button>
+                    <button onclick="deleteScript('${script.id}')" class="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700">
+                        Delete
+                    </button>
+                </div>
+            </div>
+        `).join('');
+
+    } catch (error) {
+        console.error('Failed to load scripts:', error);
+        document.getElementById('scripts-list').innerHTML = `
+            <div class="p-6 text-center text-red-500">
+                Failed to load scripts. Please try again.
+            </div>
+        `;
+    }
+}
+
+async function loadLogs() {
+    try {
+        const response = await fetch('/api/sieve/logs?limit=10');
+        const logs = await response.json();
+
+        const container = document.getElementById('logs-list');
+
+        if (logs.length === 0) {
+            container.innerHTML = '<p class="text-center text-gray-500 dark:text-gray-400">No execution logs found.</p>';
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="space-y-2">
+                ${logs.map(log => `
+                    <div class="text-sm p-2 bg-gray-50 dark:bg-gray-900 rounded">
+                        <div class="flex justify-between">
+                            <span class="text-gray-700 dark:text-gray-300">${escapeHtml(log.message_id || 'Unknown message')}</span>
+                            <span class="text-gray-500 dark:text-gray-400">${new Date(log.executed_at).toLocaleString()}</span>
+                        </div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Action: ${escapeHtml(log.action_taken)}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+
+    } catch (error) {
+        console.error('Failed to load logs:', error);
+    }
+}
+
+function showCreateModal() {
+    currentEditId = null;
+    document.getElementById('modal-title').textContent = 'New Sieve Script';
+    document.getElementById('script-id').value = '';
+    document.getElementById('script-name').value = '';
+    document.getElementById('script-content').value = '';
+    document.getElementById('script-activate').checked = false;
+    document.getElementById('validation-result').classList.add('hidden');
+    document.getElementById('scriptModal').classList.remove('hidden');
+}
+
+async function editScript(id) {
+    try {
+        const response = await fetch(`/api/sieve/scripts/${id}`);
+        const script = await response.json();
+
+        currentEditId = id;
+        document.getElementById('modal-title').textContent = 'Edit Sieve Script';
+        document.getElementById('script-id').value = id;
+        document.getElementById('script-name').value = script.name;
+        document.getElementById('script-content').value = script.script_content;
+        document.getElementById('script-activate').checked = script.is_active;
+        document.getElementById('validation-result').classList.add('hidden');
+        document.getElementById('scriptModal').classList.remove('hidden');
+    } catch (error) {
+        console.error('Failed to load script:', error);
+        alert('Failed to load script');
+    }
+}
+
+function closeModal() {
+    document.getElementById('scriptModal').classList.add('hidden');
+    currentEditId = null;
+}
+
+async function validateScript() {
+    const content = document.getElementById('script-content').value;
+    const resultDiv = document.getElementById('validation-result');
+
+    try {
+        const response = await fetch('/api/sieve/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ script_content: content })
+        });
+
+        const result = await response.json();
+
+        resultDiv.classList.remove('hidden');
+        if (result.valid) {
+            resultDiv.className = 'p-3 rounded-lg bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+            resultDiv.textContent = 'Script is valid!';
+        } else {
+            resultDiv.className = 'p-3 rounded-lg bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+            resultDiv.textContent = 'Invalid script: ' + (result.error || 'Unknown error');
+        }
+    } catch (error) {
+        resultDiv.classList.remove('hidden');
+        resultDiv.className = 'p-3 rounded-lg bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+        resultDiv.textContent = 'Failed to validate: ' + error.message;
+    }
+}
+
+async function saveScript(event) {
+    event.preventDefault();
+
+    const id = document.getElementById('script-id').value;
+    const payload = {
+        name: document.getElementById('script-name').value,
+        script_content: document.getElementById('script-content').value,
+        activate: document.getElementById('script-activate').checked
+    };
+
+    try {
+        const url = id ? `/api/sieve/scripts/${id}` : '/api/sieve/scripts';
+        const method = id ? 'PUT' : 'POST';
+
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to save script');
+        }
+
+        closeModal();
+        await loadScripts();
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function activateScript(id) {
+    try {
+        const response = await fetch(`/api/sieve/scripts/${id}/activate`, { method: 'POST' });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error);
+        }
+        await loadScripts();
+    } catch (error) {
+        alert('Failed to activate script: ' + error.message);
+    }
+}
+
+async function deactivateScript(id) {
+    try {
+        const response = await fetch(`/api/sieve/scripts/${id}/deactivate`, { method: 'POST' });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error);
+        }
+        await loadScripts();
+    } catch (error) {
+        alert('Failed to deactivate script: ' + error.message);
+    }
+}
+
+async function deleteScript(id) {
+    if (!confirm('Are you sure you want to delete this script?')) return;
+
+    try {
+        const response = await fetch(`/api/sieve/scripts/${id}`, { method: 'DELETE' });
+        if (!response.ok && response.status !== 204) {
+            const error = await response.json();
+            throw new Error(error.error);
+        }
+        await loadScripts();
+    } catch (error) {
+        alert('Failed to delete script: ' + error.message);
+    }
+}
+
+async function clearLogs() {
+    if (!confirm('Are you sure you want to clear all execution logs?')) return;
+
+    try {
+        await fetch('/api/sieve/logs', { method: 'DELETE' });
+        await loadLogs();
+    } catch (error) {
+        alert('Failed to clear logs: ' + error.message);
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    loadScripts();
+    loadLogs();
+});
+</script>
+{% endblock %}

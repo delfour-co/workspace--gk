@@ -440,8 +440,8 @@ mod tests {
         // 11th request should fail
         assert!(!bucket.try_consume());
 
-        // Tokens should equal 0
-        assert_eq!(bucket.tokens, 0.0);
+        // Tokens should be approximately 0 (may have tiny refill due to elapsed time)
+        assert!(bucket.tokens < 0.01, "tokens should be close to 0, got {}", bucket.tokens);
     }
 
     #[test]

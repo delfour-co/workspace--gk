@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Full-text Search - GK Mail Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#1a1a1a',
+                            card: '#2d2d2d',
+                            border: '#404040',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-100 dark:bg-dark-bg min-h-screen">
+    <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <!-- Header -->
+        <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <div class="flex items-center space-x-3">
+                        <h1 class="text-xl font-bold text-gray-900 dark:text-white">
+                            GK Mail Admin
+                        </h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">{{ email }}</span>
+                        <a href="/admin/logout" class="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium">
+                            Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex">
+            <!-- Sidebar -->
+            <aside class="w-64 bg-white dark:bg-gray-800 min-h-[calc(100vh-4rem)] border-r border-gray-200 dark:border-gray-700">
+                <nav class="p-4 space-y-2">
+                    <a href="/admin/dashboard"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">📊</span>
+                        <span class="font-medium">Dashboard</span>
+                    </a>
+                    <a href="/admin/users"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">👥</span>
+                        <span class="font-medium">Users</span>
+                    </a>
+                    <a href="/admin/templates"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">📝</span>
+                        <span class="font-medium">Email Templates</span>
+                    </a>
+                    <a href="/admin/auto-reply"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">🔄</span>
+                        <span class="font-medium">Auto-Reply</span>
+                    </a>
+                    <a href="/chat/app"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">💬</span>
+                        <span class="font-medium">Email Chat</span>
+                    </a>
+                    <a href="/admin/security"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">🛡️</span>
+                        <span class="font-medium">Security</span>
+                    </a>
+                    <a href="/admin/mfa"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">🔐</span>
+                        <span class="font-medium">MFA/2FA</span>
+                    </a>
+                    <a href="/admin/sieve"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">📋</span>
+                        <span class="font-medium">Sieve Rules</span>
+                    </a>
+                    <a href="/admin/search"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+                        <span class="text-xl">🔍</span>
+                        <span class="font-medium">Full-text Search</span>
+                    </a>
+                    <a href="/admin/greylisting"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">🚦</span>
+                        <span class="font-medium">Greylisting</span>
+                    </a>
+                    <a href="/admin/quotas"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">📊</span>
+                        <span class="font-medium">Quotas</span>
+                    </a>
+                    <a href="/admin/dns"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">🌐</span>
+                        <span class="font-medium">DNS Config</span>
+                    </a>
+                    <a href="/admin/diagnostics"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">🔍</span>
+                        <span class="font-medium">Diagnostics</span>
+                    </a>
+                    <a href="/admin/monitoring"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">📈</span>
+                        <span class="font-medium">Monitoring</span>
+                    </a>
+                    <a href="/admin/backups"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">💾</span>
+                        <span class="font-medium">Backups</span>
+                    </a>
+                    <a href="/admin/ssl"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">🔒</span>
+                        <span class="font-medium">SSL Certificates</span>
+                    </a>
+                    <a href="/admin/settings"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">⚙️</span>
+                        <span class="font-medium">Settings</span>
+                    </a>
+                </nav>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="flex-1 p-8">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+                        Full-text Email Search
+                    </h2>
+
+                    <!-- Index Status Card -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Index Status</h3>
+                            <div class="flex space-x-2">
+                                <button onclick="reindexAll()" id="reindex-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                    Reindex All
+                                </button>
+                                <button onclick="clearIndex()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                                    Clear Index
+                                </button>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Documents</p>
+                                <p id="doc-count" class="text-2xl font-bold text-gray-900 dark:text-white">-</p>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Index Size</p>
+                                <p id="index-size" class="text-2xl font-bold text-gray-900 dark:text-white">-</p>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Last Indexed</p>
+                                <p id="last-indexed" class="text-2xl font-bold text-gray-900 dark:text-white">-</p>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Status</p>
+                                <p id="index-status" class="text-2xl font-bold text-gray-900 dark:text-white">-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Search Box -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Search Emails</h3>
+                        <form onsubmit="performSearch(event)" class="space-y-4">
+                            <div class="flex space-x-4">
+                                <input type="text" id="search-query" placeholder="Enter search query..."
+                                       class="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-lg">
+                                <button type="submit" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                    Search
+                                </button>
+                            </div>
+                            <div class="flex space-x-4">
+                                <div class="flex-1">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Folder (optional)</label>
+                                    <input type="text" id="search-folder" placeholder="e.g., INBOX, Sent"
+                                           class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                                </div>
+                                <div class="w-32">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Limit</label>
+                                    <input type="number" id="search-limit" value="20" min="1" max="100"
+                                           class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Search Results -->
+                    <div id="results-container" class="hidden">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-medium text-gray-900 dark:text-white">
+                                    Search Results (<span id="result-count">0</span> found)
+                                </h3>
+                                <p id="query-time" class="text-sm text-gray-500 dark:text-gray-400"></p>
+                            </div>
+                            <div id="results-list" class="space-y-4">
+                                <!-- Results will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Search Tips -->
+                    <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6 mt-6">
+                        <h3 class="text-lg font-medium text-blue-800 dark:text-blue-200 mb-4">Search Tips</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-700 dark:text-blue-300">
+                            <div>
+                                <p class="font-medium mb-2">Basic Search:</p>
+                                <ul class="list-disc list-inside space-y-1">
+                                    <li>Type any word to search in subject, body, from, to fields</li>
+                                    <li>Multiple words are searched with AND logic</li>
+                                    <li>Search is case-insensitive</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-medium mb-2">Advanced Operators:</p>
+                                <ul class="list-disc list-inside space-y-1">
+                                    <li><code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">+word</code> - Must include word</li>
+                                    <li><code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">-word</code> - Must exclude word</li>
+                                    <li><code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">"exact phrase"</code> - Search exact phrase</li>
+                                    <li><code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">word*</code> - Wildcard suffix</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // Load index status on page load
+        document.addEventListener('DOMContentLoaded', loadStatus);
+
+        async function loadStatus() {
+            try {
+                const response = await fetch('/api/search/status');
+                if (!response.ok) throw new Error('Failed to load status');
+
+                const status = await response.json();
+                updateStatusDisplay(status);
+            } catch (error) {
+                console.error('Error loading status:', error);
+            }
+        }
+
+        function updateStatusDisplay(status) {
+            document.getElementById('doc-count').textContent = status.document_count.toLocaleString();
+            document.getElementById('index-size').textContent = formatBytes(status.index_size_bytes);
+            document.getElementById('last-indexed').textContent = status.last_indexed_at
+                ? new Date(status.last_indexed_at).toLocaleString()
+                : 'Never';
+            document.getElementById('index-status').textContent = status.is_indexing ? 'Indexing...' : 'Ready';
+            document.getElementById('index-status').className = status.is_indexing
+                ? 'text-2xl font-bold text-yellow-600'
+                : 'text-2xl font-bold text-green-600';
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        async function performSearch(event) {
+            event.preventDefault();
+
+            const query = document.getElementById('search-query').value;
+            if (!query.trim()) {
+                alert('Please enter a search query');
+                return;
+            }
+
+            const folder = document.getElementById('search-folder').value;
+            const limit = document.getElementById('search-limit').value;
+
+            const params = new URLSearchParams({ q: query });
+            if (folder) params.append('folder', folder);
+            if (limit) params.append('limit', limit);
+
+            try {
+                const response = await fetch(`/api/search?${params}`);
+                if (!response.ok) throw new Error('Search failed');
+
+                const results = await response.json();
+                displayResults(results);
+            } catch (error) {
+                console.error('Search error:', error);
+                alert('Search failed: ' + error.message);
+            }
+        }
+
+        function displayResults(results) {
+            const container = document.getElementById('results-container');
+            const list = document.getElementById('results-list');
+            const count = document.getElementById('result-count');
+            const time = document.getElementById('query-time');
+
+            container.classList.remove('hidden');
+            count.textContent = results.total;
+            time.textContent = `Query time: ${results.query_time_ms}ms`;
+
+            if (results.results.length === 0) {
+                list.innerHTML = `
+                    <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+                        <p class="text-4xl mb-2">📭</p>
+                        <p>No results found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            list.innerHTML = results.results.map(result => `
+                <div class="border border-gray-200 dark:border-gray-600 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <div class="flex items-start justify-between mb-2">
+                        <h4 class="font-medium text-gray-900 dark:text-white">${escapeHtml(result.subject || '(No Subject)')}</h4>
+                        <span class="text-sm text-gray-500 dark:text-gray-400 ml-4 whitespace-nowrap">${formatDate(result.date)}</span>
+                    </div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                        <span class="font-medium">From:</span> ${escapeHtml(result.from)}
+                        <span class="mx-2">|</span>
+                        <span class="font-medium">Folder:</span> ${escapeHtml(result.folder)}
+                        <span class="mx-2">|</span>
+                        <span class="font-medium">Score:</span> ${result.score.toFixed(2)}
+                    </div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">${escapeHtml(result.snippet)}</p>
+                </div>
+            `).join('');
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function reindexAll() {
+            if (!confirm('This will reindex all emails. This may take a while. Continue?')) return;
+
+            const btn = document.getElementById('reindex-btn');
+            btn.disabled = true;
+            btn.textContent = 'Reindexing...';
+
+            try {
+                const response = await fetch('/api/search/reindex-all', { method: 'POST' });
+                if (!response.ok) throw new Error('Reindex failed');
+
+                const result = await response.json();
+                alert(result.message);
+                loadStatus();
+            } catch (error) {
+                console.error('Reindex error:', error);
+                alert('Reindex failed: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Reindex All';
+            }
+        }
+
+        async function clearIndex() {
+            if (!confirm('This will delete the entire search index. You will need to reindex all emails. Continue?')) return;
+
+            try {
+                const response = await fetch('/api/search/clear', { method: 'DELETE' });
+                if (!response.ok) throw new Error('Clear failed');
+
+                alert('Search index cleared successfully');
+                loadStatus();
+            } catch (error) {
+                console.error('Clear error:', error);
+                alert('Clear failed: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

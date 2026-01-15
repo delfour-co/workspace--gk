@@ -506,3 +506,111 @@ pub async fn monitoring_page(
 
     MonitoringTemplate { email }.into_response()
 }
+
+#[derive(Template)]
+#[template(path = "mfa.html")]
+struct MfaTemplate {
+    email: String,
+}
+
+// MFA/2FA configuration page
+pub async fn mfa_page(
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let email = match get_session_email(&headers) {
+        Some(e) => e,
+        None => return Redirect::to("/admin/login").into_response(),
+    };
+
+    MfaTemplate { email }.into_response()
+}
+
+#[derive(Template)]
+#[template(path = "sieve.html")]
+struct SieveTemplate {
+    email: String,
+}
+
+// Sieve rules configuration page
+pub async fn sieve_page(
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let email = match get_session_email(&headers) {
+        Some(e) => e,
+        None => return Redirect::to("/admin/login").into_response(),
+    };
+
+    SieveTemplate { email }.into_response()
+}
+
+#[derive(Template)]
+#[template(path = "search.html")]
+struct SearchTemplate {
+    email: String,
+}
+
+// Full-text search page
+pub async fn search_page(
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let email = match get_session_email(&headers) {
+        Some(e) => e,
+        None => return Redirect::to("/admin/login").into_response(),
+    };
+
+    SearchTemplate { email }.into_response()
+}
+
+#[derive(Template)]
+#[template(path = "spam.html")]
+struct SpamTemplate {
+    email: String,
+}
+
+// Spam scoring page
+pub async fn spam_page(
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let email = match get_session_email(&headers) {
+        Some(e) => e,
+        None => return Redirect::to("/admin/login").into_response(),
+    };
+
+    SpamTemplate { email }.into_response()
+}
+
+#[derive(Template)]
+#[template(path = "import_export.html")]
+struct ImportExportTemplate {
+    email: String,
+}
+
+// Import/Export page
+pub async fn import_export_page(
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let email = match get_session_email(&headers) {
+        Some(e) => e,
+        None => return Redirect::to("/admin/login").into_response(),
+    };
+
+    ImportExportTemplate { email }.into_response()
+}
+
+#[derive(Template)]
+#[template(path = "caldav.html")]
+struct CalDavTemplate {
+    email: String,
+}
+
+// CalDAV/CardDAV management page
+pub async fn caldav_page(
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let email = match get_session_email(&headers) {
+        Some(e) => e,
+        None => return Redirect::to("/admin/login").into_response(),
+    };
+
+    CalDavTemplate { email }.into_response()
+}

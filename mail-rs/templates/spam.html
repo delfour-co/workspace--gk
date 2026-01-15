@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spam Scoring - GK Mail Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#1a1a1a',
+                            card: '#2d2d2d',
+                            border: '#404040',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-100 dark:bg-dark-bg min-h-screen">
+    <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <!-- Header -->
+        <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <div class="flex items-center space-x-3">
+                        <h1 class="text-xl font-bold text-gray-900 dark:text-white">
+                            GK Mail Admin
+                        </h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">{{ email }}</span>
+                        <a href="/admin/logout" class="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium">
+                            Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex">
+            <!-- Sidebar -->
+            <aside class="w-64 bg-white dark:bg-gray-800 min-h-[calc(100vh-4rem)] border-r border-gray-200 dark:border-gray-700">
+                <nav class="p-4 space-y-2">
+                    <a href="/admin/dashboard"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">📊</span>
+                        <span class="font-medium">Dashboard</span>
+                    </a>
+                    <a href="/admin/users"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">👥</span>
+                        <span class="font-medium">Users</span>
+                    </a>
+                    <a href="/admin/templates"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">📝</span>
+                        <span class="font-medium">Email Templates</span>
+                    </a>
+                    <a href="/admin/auto-reply"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">🔄</span>
+                        <span class="font-medium">Auto-Reply</span>
+                    </a>
+                    <a href="/chat/app"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">💬</span>
+                        <span class="font-medium">Email Chat</span>
+                    </a>
+                    <a href="/admin/security"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">🛡️</span>
+                        <span class="font-medium">Security</span>
+                    </a>
+                    <a href="/admin/mfa"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">🔐</span>
+                        <span class="font-medium">MFA/2FA</span>
+                    </a>
+                    <a href="/admin/sieve"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">📋</span>
+                        <span class="font-medium">Sieve Rules</span>
+                    </a>
+                    <a href="/admin/search"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">🔍</span>
+                        <span class="font-medium">Full-text Search</span>
+                    </a>
+                    <a href="/admin/spam"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+                        <span class="text-xl">🚫</span>
+                        <span class="font-medium">Spam Scoring</span>
+                    </a>
+                    <a href="/admin/greylisting"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">🚦</span>
+                        <span class="font-medium">Greylisting</span>
+                    </a>
+                    <a href="/admin/quotas"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">📊</span>
+                        <span class="font-medium">Quotas</span>
+                    </a>
+                    <a href="/admin/dns"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">🌐</span>
+                        <span class="font-medium">DNS Config</span>
+                    </a>
+                    <a href="/admin/diagnostics"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">🔍</span>
+                        <span class="font-medium">Diagnostics</span>
+                    </a>
+                    <a href="/admin/monitoring"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">📈</span>
+                        <span class="font-medium">Monitoring</span>
+                    </a>
+                    <a href="/admin/backups"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">💾</span>
+                        <span class="font-medium">Backups</span>
+                    </a>
+                    <a href="/admin/ssl"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">🔒</span>
+                        <span class="font-medium">SSL Certificates</span>
+                    </a>
+                    <a href="/admin/settings"
+                       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span class="text-xl">⚙️</span>
+                        <span class="font-medium">Settings</span>
+                    </a>
+                </nav>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="flex-1 p-8">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+                        Spam Scoring & Detection
+                    </h2>
+
+                    <!-- Statistics Card -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Statistics</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Messages Scanned</p>
+                                <p id="stat-scanned" class="text-2xl font-bold text-gray-900 dark:text-white">-</p>
+                            </div>
+                            <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
+                                <p class="text-sm text-red-600 dark:text-red-400">Spam Detected</p>
+                                <p id="stat-spam" class="text-2xl font-bold text-red-600 dark:text-red-400">-</p>
+                            </div>
+                            <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                                <p class="text-sm text-green-600 dark:text-green-400">Ham Detected</p>
+                                <p id="stat-ham" class="text-2xl font-bold text-green-600 dark:text-green-400">-</p>
+                            </div>
+                            <div class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4">
+                                <p class="text-sm text-yellow-600 dark:text-yellow-400">Quarantined</p>
+                                <p id="stat-quarantined" class="text-2xl font-bold text-yellow-600 dark:text-yellow-400">-</p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+                            <div class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
+                                <p class="text-sm text-purple-600 dark:text-purple-400">Spam Learned</p>
+                                <p id="stat-spam-learned" class="text-2xl font-bold text-purple-600 dark:text-purple-400">-</p>
+                            </div>
+                            <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                                <p class="text-sm text-blue-600 dark:text-blue-400">Ham Learned</p>
+                                <p id="stat-ham-learned" class="text-2xl font-bold text-blue-600 dark:text-blue-400">-</p>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Active Rules</p>
+                                <p id="stat-rules" class="text-2xl font-bold text-gray-900 dark:text-white">-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Configuration Card -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Configuration</h3>
+                        <form id="config-form" onsubmit="saveConfig(event)" class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Spam Threshold</label>
+                                    <input type="number" step="0.1" id="config-spam-threshold"
+                                           class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Score above which messages are marked as spam</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ham Threshold</label>
+                                    <input type="number" step="0.1" id="config-ham-threshold"
+                                           class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Score below which messages are definitely ham</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quarantine Folder</label>
+                                    <input type="text" id="config-quarantine-folder"
+                                           class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                                </div>
+                                <div class="flex items-center space-x-4 pt-6">
+                                    <label class="flex items-center space-x-2">
+                                        <input type="checkbox" id="config-quarantine-enabled" class="w-4 h-4 rounded text-blue-600">
+                                        <span class="text-sm text-gray-700 dark:text-gray-300">Enable Quarantine</span>
+                                    </label>
+                                    <label class="flex items-center space-x-2">
+                                        <input type="checkbox" id="config-learning-enabled" class="w-4 h-4 rounded text-blue-600">
+                                        <span class="text-sm text-gray-700 dark:text-gray-300">Enable Learning</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                Save Configuration
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Test Message -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Test Message</h3>
+                        <form onsubmit="testMessage(event)" class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">From</label>
+                                    <input type="text" id="test-from" placeholder="sender@example.com"
+                                           class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">To</label>
+                                    <input type="text" id="test-to" placeholder="recipient@example.com"
+                                           class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Subject</label>
+                                <input type="text" id="test-subject" placeholder="Enter subject..."
+                                       class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Body</label>
+                                <textarea id="test-body" rows="4" placeholder="Enter message body..."
+                                          class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"></textarea>
+                            </div>
+                            <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                                Test Message
+                            </button>
+                        </form>
+                        <div id="test-results" class="hidden mt-4 p-4 rounded-lg border"></div>
+                    </div>
+
+                    <!-- Bayesian Learning -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Bayesian Learning</h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Train the spam filter by providing example messages.</p>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Message Content</label>
+                                <textarea id="learn-body" rows="4" placeholder="Paste message content here..."
+                                          class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"></textarea>
+                            </div>
+                            <div class="flex space-x-4">
+                                <button onclick="learnSpam()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                                    Learn as Spam
+                                </button>
+                                <button onclick="learnHam()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                                    Learn as Ham
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rules Management -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Spam Rules</h3>
+                            <button onclick="showAddRuleModal()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                Add Rule
+                            </button>
+                        </div>
+                        <div id="rules-list" class="space-y-2">
+                            <!-- Rules will be inserted here -->
+                        </div>
+                    </div>
+
+                    <!-- Spam Logs -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Recent Spam Logs</h3>
+                            <button onclick="clearLogs()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                                Clear Logs
+                            </button>
+                        </div>
+                        <div id="logs-list" class="space-y-2 max-h-96 overflow-y-auto">
+                            <!-- Logs will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Add/Edit Rule Modal -->
+    <div id="rule-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h3 id="modal-title" class="text-lg font-medium text-gray-900 dark:text-white mb-4">Add Rule</h3>
+            <form id="rule-form" onsubmit="saveRule(event)" class="space-y-4">
+                <input type="hidden" id="rule-id">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                    <input type="text" id="rule-name" required
+                           class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                    <input type="text" id="rule-description"
+                           class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+                    <select id="rule-type"
+                            class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                        <option value="Header">Header</option>
+                        <option value="Body">Body</option>
+                        <option value="Regex">Regex</option>
+                        <option value="Dns">DNS</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pattern</label>
+                    <input type="text" id="rule-pattern" required
+                           class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Score</label>
+                    <input type="number" step="0.1" id="rule-score" required
+                           class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                </div>
+                <div>
+                    <label class="flex items-center space-x-2">
+                        <input type="checkbox" id="rule-enabled" checked class="w-4 h-4 rounded text-blue-600">
+                        <span class="text-sm text-gray-700 dark:text-gray-300">Enabled</span>
+                    </label>
+                </div>
+                <div class="flex justify-end space-x-4 pt-4">
+                    <button type="button" onclick="closeRuleModal()" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        Save
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Load data on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStats();
+            loadConfig();
+            loadRules();
+            loadLogs();
+        });
+
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/spam/stats');
+                const result = await response.json();
+                if (result.success) {
+                    document.getElementById('stat-scanned').textContent = result.data.messages_scanned.toLocaleString();
+                    document.getElementById('stat-spam').textContent = result.data.spam_detected.toLocaleString();
+                    document.getElementById('stat-ham').textContent = result.data.ham_detected.toLocaleString();
+                    document.getElementById('stat-quarantined').textContent = result.data.quarantined.toLocaleString();
+                    document.getElementById('stat-spam-learned').textContent = result.data.spam_learned.toLocaleString();
+                    document.getElementById('stat-ham-learned').textContent = result.data.ham_learned.toLocaleString();
+                    document.getElementById('stat-rules').textContent = result.data.active_rules;
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/spam/config');
+                const result = await response.json();
+                if (result.success) {
+                    document.getElementById('config-spam-threshold').value = result.data.spam_threshold;
+                    document.getElementById('config-ham-threshold').value = result.data.ham_threshold;
+                    document.getElementById('config-quarantine-folder').value = result.data.quarantine_folder;
+                    document.getElementById('config-quarantine-enabled').checked = result.data.quarantine_enabled;
+                    document.getElementById('config-learning-enabled').checked = result.data.learning_enabled;
+                }
+            } catch (error) {
+                console.error('Error loading config:', error);
+            }
+        }
+
+        async function saveConfig(event) {
+            event.preventDefault();
+            try {
+                const response = await fetch('/api/spam/config', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        spam_threshold: parseFloat(document.getElementById('config-spam-threshold').value),
+                        ham_threshold: parseFloat(document.getElementById('config-ham-threshold').value),
+                        quarantine_folder: document.getElementById('config-quarantine-folder').value,
+                        quarantine_enabled: document.getElementById('config-quarantine-enabled').checked,
+                        learning_enabled: document.getElementById('config-learning-enabled').checked,
+                    })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Configuration saved successfully');
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error saving config:', error);
+                alert('Error saving configuration');
+            }
+        }
+
+        async function loadRules() {
+            try {
+                const response = await fetch('/api/spam/rules');
+                const result = await response.json();
+                if (result.success) {
+                    const container = document.getElementById('rules-list');
+                    if (result.data.length === 0) {
+                        container.innerHTML = `
+                            <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+                                <p>No custom rules defined</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    container.innerHTML = result.data.map(rule => `
+                        <div class="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
+                            <div class="flex-1">
+                                <div class="flex items-center space-x-2">
+                                    <span class="font-medium text-gray-900 dark:text-white">${escapeHtml(rule.name)}</span>
+                                    <span class="px-2 py-1 text-xs rounded ${rule.is_enabled ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}">
+                                        ${rule.is_enabled ? 'Enabled' : 'Disabled'}
+                                    </span>
+                                    <span class="px-2 py-1 text-xs rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600">${rule.rule_type}</span>
+                                </div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">${escapeHtml(rule.description)}</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">Pattern: <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">${escapeHtml(rule.pattern)}</code> | Score: ${rule.score}</p>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button onclick="editRule('${rule.id}')" class="px-3 py-1 text-sm bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 rounded hover:bg-yellow-200 dark:hover:bg-yellow-900/50">
+                                    Edit
+                                </button>
+                                <button onclick="deleteRule('${rule.id}')" class="px-3 py-1 text-sm bg-red-100 dark:bg-red-900/30 text-red-600 rounded hover:bg-red-200 dark:hover:bg-red-900/50">
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading rules:', error);
+            }
+        }
+
+        async function loadLogs() {
+            try {
+                const response = await fetch('/api/spam/logs?limit=50');
+                const result = await response.json();
+                if (result.success) {
+                    const container = document.getElementById('logs-list');
+                    if (result.data.length === 0) {
+                        container.innerHTML = `
+                            <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+                                <p>No spam logs found</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    container.innerHTML = result.data.map(log => `
+                        <div class="p-3 border border-gray-200 dark:border-gray-600 rounded-lg">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-medium text-gray-900 dark:text-white">${escapeHtml(log.recipient_email)}</span>
+                                <span class="text-xs text-gray-500 dark:text-gray-400">${new Date(log.created_at).toLocaleString()}</span>
+                            </div>
+                            <div class="flex items-center space-x-4 mt-1">
+                                <span class="text-sm ${log.total_score >= 5.0 ? 'text-red-600' : 'text-green-600'}">Score: ${log.total_score.toFixed(2)}</span>
+                                <span class="px-2 py-1 text-xs rounded ${getActionClass(log.action_taken)}">${log.action_taken}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading logs:', error);
+            }
+        }
+
+        function getActionClass(action) {
+            switch (action) {
+                case 'Deliver': return 'bg-green-100 dark:bg-green-900/30 text-green-600';
+                case 'AddHeaders': return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600';
+                case 'Quarantine': return 'bg-orange-100 dark:bg-orange-900/30 text-orange-600';
+                case 'Reject': return 'bg-red-100 dark:bg-red-900/30 text-red-600';
+                default: return 'bg-gray-100 dark:bg-gray-700 text-gray-600';
+            }
+        }
+
+        async function testMessage(event) {
+            event.preventDefault();
+            const resultsDiv = document.getElementById('test-results');
+            try {
+                const response = await fetch('/api/spam/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        from: document.getElementById('test-from').value,
+                        to: document.getElementById('test-to').value,
+                        subject: document.getElementById('test-subject').value,
+                        body: document.getElementById('test-body').value,
+                    })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    const data = result.data;
+                    resultsDiv.classList.remove('hidden');
+                    resultsDiv.className = `mt-4 p-4 rounded-lg border ${data.is_spam ? 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700' : 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700'}`;
+                    resultsDiv.innerHTML = `
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-medium ${data.is_spam ? 'text-red-600' : 'text-green-600'}">
+                                ${data.is_spam ? 'SPAM' : 'HAM'}
+                            </span>
+                            <span class="text-lg font-bold ${data.is_spam ? 'text-red-600' : 'text-green-600'}">
+                                Score: ${data.score.toFixed(2)}
+                            </span>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Action: ${data.action}</p>
+                        ${data.rules_matched.length > 0 ? `
+                            <div class="mt-2">
+                                <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rules Matched:</p>
+                                <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                                    ${data.rules_matched.map(r => `<li>• ${escapeHtml(r.rule_name)} (+${r.score.toFixed(2)}): ${escapeHtml(r.description)}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : '<p class="text-sm text-gray-500 dark:text-gray-400">No rules matched</p>'}
+                    `;
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error testing message:', error);
+                alert('Error testing message');
+            }
+        }
+
+        async function learnSpam() {
+            const body = document.getElementById('learn-body').value;
+            if (!body.trim()) {
+                alert('Please enter message content');
+                return;
+            }
+            try {
+                const response = await fetch('/api/spam/learn/spam', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ body })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Learned as spam successfully');
+                    document.getElementById('learn-body').value = '';
+                    loadStats();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error learning spam:', error);
+                alert('Error learning spam');
+            }
+        }
+
+        async function learnHam() {
+            const body = document.getElementById('learn-body').value;
+            if (!body.trim()) {
+                alert('Please enter message content');
+                return;
+            }
+            try {
+                const response = await fetch('/api/spam/learn/ham', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ body })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Learned as ham successfully');
+                    document.getElementById('learn-body').value = '';
+                    loadStats();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error learning ham:', error);
+                alert('Error learning ham');
+            }
+        }
+
+        function showAddRuleModal() {
+            document.getElementById('modal-title').textContent = 'Add Rule';
+            document.getElementById('rule-id').value = '';
+            document.getElementById('rule-name').value = '';
+            document.getElementById('rule-description').value = '';
+            document.getElementById('rule-type').value = 'Body';
+            document.getElementById('rule-pattern').value = '';
+            document.getElementById('rule-score').value = '1.0';
+            document.getElementById('rule-enabled').checked = true;
+            document.getElementById('rule-modal').classList.remove('hidden');
+        }
+
+        function closeRuleModal() {
+            document.getElementById('rule-modal').classList.add('hidden');
+        }
+
+        let rulesCache = [];
+
+        async function editRule(id) {
+            try {
+                const response = await fetch('/api/spam/rules');
+                const result = await response.json();
+                if (result.success) {
+                    const rule = result.data.find(r => r.id === id);
+                    if (rule) {
+                        document.getElementById('modal-title').textContent = 'Edit Rule';
+                        document.getElementById('rule-id').value = rule.id;
+                        document.getElementById('rule-name').value = rule.name;
+                        document.getElementById('rule-description').value = rule.description;
+                        document.getElementById('rule-type').value = rule.rule_type;
+                        document.getElementById('rule-pattern').value = rule.pattern;
+                        document.getElementById('rule-score').value = rule.score;
+                        document.getElementById('rule-enabled').checked = rule.is_enabled;
+                        document.getElementById('rule-modal').classList.remove('hidden');
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading rule:', error);
+            }
+        }
+
+        async function saveRule(event) {
+            event.preventDefault();
+            const id = document.getElementById('rule-id').value;
+            const data = {
+                name: document.getElementById('rule-name').value,
+                description: document.getElementById('rule-description').value,
+                rule_type: document.getElementById('rule-type').value,
+                pattern: document.getElementById('rule-pattern').value,
+                score: parseFloat(document.getElementById('rule-score').value),
+                is_enabled: document.getElementById('rule-enabled').checked,
+            };
+
+            try {
+                const url = id ? `/api/spam/rules/${id}` : '/api/spam/rules';
+                const method = id ? 'PUT' : 'POST';
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    closeRuleModal();
+                    loadRules();
+                    loadStats();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error saving rule:', error);
+                alert('Error saving rule');
+            }
+        }
+
+        async function deleteRule(id) {
+            if (!confirm('Are you sure you want to delete this rule?')) return;
+            try {
+                const response = await fetch(`/api/spam/rules/${id}`, { method: 'DELETE' });
+                const result = await response.json();
+                if (result.success) {
+                    loadRules();
+                    loadStats();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error deleting rule:', error);
+                alert('Error deleting rule');
+            }
+        }
+
+        async function clearLogs() {
+            if (!confirm('Are you sure you want to clear all spam logs?')) return;
+            try {
+                const response = await fetch('/api/spam/logs', { method: 'DELETE' });
+                const result = await response.json();
+                if (result.success) {
+                    loadLogs();
+                    loadStats();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error clearing logs:', error);
+                alert('Error clearing logs');
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
